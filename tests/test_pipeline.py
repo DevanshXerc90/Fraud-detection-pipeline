@@ -111,4 +111,5 @@ class TestThresholdOptimization:
         y_true = np.array([0, 0, 0, 1, 1, 1])
         y_proba = np.array([0.1, 0.2, 0.3, 0.7, 0.8, 0.9])
         threshold = find_optimal_threshold(y_true, y_proba)
+        # should land in the middle range given the clear separation in y_proba
         assert 0.3 <= threshold <= 0.7

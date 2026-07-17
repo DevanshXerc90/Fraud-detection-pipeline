@@ -110,6 +110,7 @@ app = FastAPI(
 )
 
 
+# Risk bands: CRITICAL ≥ 0.9 | HIGH ≥ 0.7 | MEDIUM ≥ 0.4 | LOW < 0.4
 def _risk_level(prob: float) -> str:
     if prob >= 0.9:
         return "CRITICAL"

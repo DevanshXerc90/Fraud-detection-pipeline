@@ -78,6 +78,7 @@ def main(args):
         "best_model": trainer.best_model_name,
     }
     results_path = Path(args.model_dir) / "results.json"
+    # default=str handles non-serialisable types like numpy floats
     with open(results_path, "w") as f:
         json.dump(output, f, indent=2, default=str)
 

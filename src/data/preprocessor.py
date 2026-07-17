@@ -32,6 +32,7 @@ class DataPreprocessor:
         if not self._fitted:
             raise RuntimeError("Call fit() before transform()")
 
+        # copy to avoid mutating the caller's dataframe in-place
         result = df.copy()
         result["Amount"] = self.amount_scaler.transform(result[["Amount"]].values)
         result["Time"] = self.time_scaler.transform(result[["Time"]].values)

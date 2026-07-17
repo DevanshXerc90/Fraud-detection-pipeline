@@ -1,6 +1,7 @@
 FROM python:3.11-slim
 
 WORKDIR /app
+# /app is the conventional non-root working directory for Python containers
 
 # Install dependencies first (better layer caching)
 COPY requirements.txt .

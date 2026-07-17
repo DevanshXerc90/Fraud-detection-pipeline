@@ -19,7 +19,7 @@ services:
   mlflow:
     image: python:3.11-slim
     ports:
-      - "5001:5000"
+      - "5001:5000"  # host 5001 → container 5000 (avoids macOS AirPlay conflict)
     command: >
       bash -c "pip install mlflow &&
               mlflow server

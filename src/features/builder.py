@@ -29,6 +29,7 @@ class FeatureEngineer:
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply all feature engineering steps and return the enriched frame."""
+        # work on a copy so the original dataframe is never modified
         result = df.copy()
 
         # Log-transform the amount to tame extreme skew.

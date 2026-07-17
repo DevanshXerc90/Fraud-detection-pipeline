@@ -59,6 +59,7 @@ class DataLoader:
         )
 
         # then carve validation out of what's left
+        # adjust val_size relative to the remaining (non-test) fraction
         adjusted_val = val_size / (1 - test_size)
         train, val = train_test_split(
             train_val,
