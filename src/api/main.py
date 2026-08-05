@@ -12,6 +12,7 @@ from typing import List
 import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 
@@ -155,6 +156,12 @@ def _predict(tx: TransactionFeatures) -> PredictionResponse:
 
 
 # ── Endpoints ──────────────────────────────────────────────────
+
+@app.get("/", include_in_schema=False)
+def root():
+    """Redirect root to interactive API docs."""
+    return RedirectResponse(url="/docs")
+
 
 @app.get("/health")
 def health_check():
