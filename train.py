@@ -20,12 +20,13 @@ sys.path.insert(0, str(Path(__file__).parent))
 from src.data import DataLoader, DataPreprocessor
 from src.features import FeatureEngineer
 from src.models import ModelTrainer
+from src.models.shap_explainer import explain as shap_explain
 
 
 def main(args):
     # ── 1. Load data ───────────────────────────────────────
     print("\n" + "=" * 60)
-    print("  FRAUD DETECTION PIPELINE")
+    print("  FRAUD DETECTION PIPELINE  (4 models + SHAP)")
     print("=" * 60)
 
     loader = DataLoader(args.data_path)
@@ -83,7 +84,17 @@ def main(args):
         json.dump(output, f, indent=2, default=str)
 
     print(f"\nResults saved to {results_path}")
-    print("Pipeline complete!")
+
+    # ── 10. SHAP interpretability (winner only) ────────────────
+    shap_explain(
+        model=trainer.best_model,
+        model_name=trainer.best_model_name,
+        X_test=X_test,
+        y_test=y_test,
+        output_dir="outputs/shap",
+    )
+
+    print("\nPipeline complete!")
 
 
 if __name__ == "__main__":

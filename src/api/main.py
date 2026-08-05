@@ -77,9 +77,9 @@ _state: dict = {"model": None, "preprocessor": None, "threshold": 0.5}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load model and preprocessor on startup."""
-    model_path = MODEL_DIR / "best_model.pkl"
+    model_path = MODEL_DIR / "model.pkl"
     preprocessor_path = MODEL_DIR / "preprocessor.pkl"
-    meta_path = MODEL_DIR / "model_metadata.json"
+    meta_path = MODEL_DIR / "metadata.json"
 
     if model_path.exists():
         _state["model"] = joblib.load(model_path)
@@ -94,7 +94,7 @@ async def lifespan(app: FastAPI):
     if meta_path.exists():
         with open(meta_path) as f:
             meta = json.load(f)
-        _state["threshold"] = meta.get("threshold", 0.5)
+        _state["threshold"] = meta.get("best_threshold", 0.5)
 
     print(f"Decision threshold: {_state['threshold']:.4f}")
     yield

@@ -1,0 +1,10 @@
+{
+  "best_model": "XGBoost",
+  "best_threshold": 0.9698496460914612,
+  "val_auprc_all": {
+    "LogisticRegression": 0.6829712826767026,
+    "RandomForest": 0.7850633063318614,
+    "XGBoost": 0.8151811677553995,
+    "LightGBM": 0.016006874731904805
+  }
+}

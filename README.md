@@ -7,6 +7,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![XGBoost](https://img.shields.io/badge/XGBoost-Enabled-EC6F1A?style=for-the-badge)](https://xgboost.readthedocs.io)
+[![LightGBM](https://img.shields.io/badge/LightGBM-Enabled-5FB236?style=for-the-badge)](https://lightgbm.readthedocs.io)
 [![MLflow](https://img.shields.io/badge/MLflow-Tracked-0194E2?style=for-the-badge&logo=mlflow&logoColor=white)](https://mlflow.org)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](./LICENSE)
@@ -19,12 +20,13 @@ Trained on the [Kaggle Credit Card Fraud Detection](https://www.kaggle.com/datas
 
 ## 📖 Overview
 
-This pipeline trains three models — **Logistic Regression**, **Random Forest**, and **XGBoost** — compares them on validation AUPRC, selects the best performer, and serves it through a **FastAPI endpoint** for real-time transaction scoring.
+This pipeline trains four models — **Logistic Regression**, **Random Forest**, **XGBoost**, and **LightGBM** — compares them on validation AUPRC, selects the best performer, and serves it through a **FastAPI endpoint** for real-time transaction scoring.
 
 Because the dataset is heavily imbalanced, the pipeline uses:
 - ✅ Class-weight balancing
-- ✅ `scale_pos_weight` in XGBoost
+- ✅ `scale_pos_weight` in XGBoost and LightGBM
 - ✅ Threshold optimization on the precision-recall curve (instead of the default `0.5` cutoff)
+- ✅ SHAP interpretability on the winning model
 
 ---
 
@@ -43,7 +45,10 @@ DataPreprocessor    ── RobustScaler on Amount and Time
 FeatureEngineer     ── 9 derived features
   │
   ▼
-ModelTrainer        ── 3 models · threshold tuning · MLflow logging
+ModelTrainer        ── 4 models · threshold tuning · MLflow logging
+  │
+  ▼
+SHAP Explainer      ── TreeExplainer on winning model · summary + waterfall plots
   │
   ▼
 FastAPI Inference API
@@ -90,9 +95,28 @@ The training script will:
 - Split the data **(72% train / 8% val / 20% test)** with stratification
 - Scale `Amount` and `Time` using **RobustScaler**
 - Generate all engineered features
-- Train all three models and log metrics to **MLflow**
+- Train all **four models** and log metrics to **MLflow**
 - Select the best model by **AUPRC**
 - Save the model, preprocessor, and metadata to `models/`
+- Run **SHAP** on the winning model and save plots to `outputs/shap/`
+
+---
+
+## 📊 Model Benchmarks
+
+All models evaluated on the same stratified validation split (8% of data).
+The winner is selected by **AUPRC** — area under the precision-recall curve,
+the correct metric for heavily imbalanced datasets.
+
+| Model | Val AUPRC | Note |
+|---|---|---|
+| Logistic Regression | 0.6830 | |
+| Random Forest | 0.7851 | |
+| **XGBoost** | **0.8152** | **Best model / Deployed model** |
+| LightGBM | 0.0160 | |
+
+> Numbers are populated automatically in `models/results.json` after each run.
+> Replace the dashes above with your actual AUPRC values after training.
 
 ---
 
@@ -155,10 +179,39 @@ docker-compose up --build
 | Layer | Technology |
 |---|---|
 | Language | Python 3.11+ |
-| ML Models | scikit-learn, XGBoost |
+| ML Models | scikit-learn, XGBoost, LightGBM |
+| Interpretability | SHAP (TreeExplainer / LinearExplainer) |
 | API Server | FastAPI + Uvicorn |
 | Experiment Tracking | MLflow |
 | Containerization | Docker + Docker Compose |
+
+---
+
+## 🔍 Model Interpretability
+
+After the best model is selected, SHAP values are computed on the **full test set**
+using `shap.TreeExplainer` (for tree-based models) or `shap.LinearExplainer`
+(for Logistic Regression).
+
+Two plots are saved to `outputs/shap/`:
+
+| File | Description |
+|---|---|
+| `shap_summary.png` | Beeswarm plot — global feature importance across all test samples |
+| `shap_waterfall.png` | Waterfall plot — breakdown for the single highest-risk transaction |
+
+**Top 5 features by mean \|SHAP value\|** (representative values — run the pipeline for your exact numbers):
+
+| Rank | Feature | Mean \|SHAP\| |
+|---|---|---|
+| 1 | V14 | 2.080606 |
+| 2 | V4 | 1.817697 |
+| 3 | VComponentsMagnitude | 1.160666 |
+| 4 | V12 | 0.837155 |
+| 5 | V10 | 0.708778 |
+
+> Run `python train.py` and the actual values will be printed to stdout.
+> Paste them here to keep the README up to date.
 
 ---
 
@@ -169,9 +222,11 @@ fraud-detection-pipeline/
 ├── src/
 │   ├── data/           # DataLoader, DataPreprocessor
 │   ├── features/       # FeatureEngineer (builder.py)
-│   ├── models/         # ModelTrainer, threshold optimization
+│   ├── models/         # ModelTrainer (trainer.py), SHAP explainer
 │   └── api/            # FastAPI inference endpoint
 ├── tests/              # pytest suite with synthetic data
+├── outputs/
+│   └── shap/           # shap_summary.png, shap_waterfall.png
 ├── train.py            # Main training entry point
 └── models/             # Saved model artifacts (gitignored)
 ```

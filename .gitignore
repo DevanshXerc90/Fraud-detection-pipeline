@@ -2,8 +2,7 @@
 data/*.csv
 data/*.parquet
 
-# Model artifacts
-models/
+# Model artifacts (mlruns/mlartifacts are gitignored; models/ is tracked so Render has the weights)
 mlruns/
 mlartifacts/
 

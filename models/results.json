@@ -1,0 +1,18 @@
+{
+  "validation_results": {
+    "LogisticRegression": 0.6829712826767026,
+    "RandomForest": 0.7850633063318614,
+    "XGBoost": 0.8151811677553995,
+    "LightGBM": 0.016006874731904805
+  },
+  "test_results": {
+    "model": "XGBoost",
+    "threshold": 0.9698496460914612,
+    "auprc": 0.8787608870195943,
+    "auc_roc": 0.978014855351257,
+    "precision": 0.9512195121951219,
+    "recall": 0.7959183673469388,
+    "f1": 0.8666666666666667
+  },
+  "best_model": "XGBoost"
+}
