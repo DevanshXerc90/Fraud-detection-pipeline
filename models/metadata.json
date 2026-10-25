@@ -4,8 +4,7 @@
   "val_auprc_all": {
     "LogisticRegression": 0.679872506270304,
     "RandomForest": 0.7894448474182829,
-    "XGBoost": 0.8040156398634627,
-    "LightGBM": 0.04300333291034065
+    "XGBoost": 0.8040156398634627
   },
   "feature_names": [
     "Time",
@@ -49,5 +48,83 @@
     "AmountPercentile",
     "TimeSinceFirstTxNorm"
   ],
-  "failed_models": {}
+  "failed_models": {},
+  "seed": 42,
+  "evaluation_date": "2026-10-25",
+  "git_commit": "98fe040a037239081c8d69c648f059676877c22f",
+  "cross_validation": {
+    "LogisticRegression": {
+      "fold_auprc": [
+        0.7560210544287834,
+        0.703896537740931,
+        0.8139135377462949,
+        0.7684901939123285,
+        0.7904860680969351
+      ],
+      "mean_auprc": 0.7665614783850546,
+      "std_auprc": 0.04140144558263295,
+      "folds": 5
+    },
+    "RandomForest": {
+      "fold_auprc": [
+        0.8635967336603388,
+        0.7588822478895529,
+        0.8457493993985041,
+        0.9010647485461696,
+        0.9024375140125331
+      ],
+      "mean_auprc": 0.8543461287014196,
+      "std_auprc": 0.058669073556295664,
+      "folds": 5
+    },
+    "XGBoost": {
+      "fold_auprc": [
+        0.8549101122004833,
+        0.7557040854872945,
+        0.8545446789762662,
+        0.9152074682186612,
+        0.9105048759159486
+      ],
+      "mean_auprc": 0.8581742441597306,
+      "std_auprc": 0.06425582733453772,
+      "folds": 5
+    }
+  },
+  "temporal_evaluation": {
+    "ordering": "ascending Time (elapsed seconds)",
+    "split_sizes": {
+      "train": 199364,
+      "validation": 28481,
+      "test": 56962
+    },
+    "fraud_counts": {
+      "train": 384,
+      "validation": 33,
+      "test": 75
+    },
+    "best_model": "XGBoost",
+    "models": {
+      "LogisticRegression": {
+        "validation_auprc": 0.84328708202363,
+        "test_auprc": 0.8023734208285238,
+        "test_precision": 0.9607843137254902,
+        "test_recall": 0.6533333333333333,
+        "threshold": 0.9999997848142598
+      },
+      "RandomForest": {
+        "validation_auprc": 0.8246732835171884,
+        "test_auprc": 0.8088172863740039,
+        "test_precision": 0.9818181818181818,
+        "test_recall": 0.72,
+        "threshold": 0.3
+      },
+      "XGBoost": {
+        "validation_auprc": 0.8436469770598958,
+        "test_auprc": 0.7982961642316174,
+        "test_precision": 0.9464285714285714,
+        "test_recall": 0.7066666666666667,
+        "threshold": 0.9342445731163025
+      }
+    }
+  }
 }
