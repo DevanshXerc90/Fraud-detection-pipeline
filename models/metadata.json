@@ -51,7 +51,7 @@
   "failed_models": {},
   "seed": 42,
   "evaluation_date": "2026-10-25",
-  "git_commit": "98fe040a037239081c8d69c648f059676877c22f",
+  "git_commit": "a5ff5b5530452476e307b64526d826e80280aab2",
   "cross_validation": {
     "LogisticRegression": {
       "fold_auprc": [
@@ -109,6 +109,38 @@
         "test_auprc": 0.8023734208285238,
         "test_precision": 0.9607843137254902,
         "test_recall": 0.6533333333333333,
+        "test_f1": 0.7777777777777778,
+        "test_confusion_matrix": [
+          [
+            56885,
+            2
+          ],
+          [
+            26,
+            49
+          ]
+        ],
+        "test_bootstrap_confidence_intervals": {
+          "auprc": {
+            "lower": 0.7100118309691775,
+            "upper": 0.8759194438383432,
+            "replicates": 1000
+          },
+          "precision": {
+            "lower": 0.9019117647058824,
+            "upper": 1.0,
+            "replicates": 1000
+          },
+          "recall": {
+            "lower": 0.5362063686466626,
+            "upper": 0.765625,
+            "replicates": 1000
+          },
+          "method": "percentile bootstrap, 95% CI",
+          "requested_replicates": 1000,
+          "skipped_without_positive": 0,
+          "seed": 42
+        },
         "threshold": 0.9999997848142598
       },
       "RandomForest": {
@@ -116,6 +148,38 @@
         "test_auprc": 0.8088172863740039,
         "test_precision": 0.9818181818181818,
         "test_recall": 0.72,
+        "test_f1": 0.8307692307692308,
+        "test_confusion_matrix": [
+          [
+            56886,
+            1
+          ],
+          [
+            21,
+            54
+          ]
+        ],
+        "test_bootstrap_confidence_intervals": {
+          "auprc": {
+            "lower": 0.714393490599136,
+            "upper": 0.8858210924483562,
+            "replicates": 1000
+          },
+          "precision": {
+            "lower": 0.9423076923076923,
+            "upper": 1.0,
+            "replicates": 1000
+          },
+          "recall": {
+            "lower": 0.6119195688225539,
+            "upper": 0.8181818181818182,
+            "replicates": 1000
+          },
+          "method": "percentile bootstrap, 95% CI",
+          "requested_replicates": 1000,
+          "skipped_without_positive": 0,
+          "seed": 42
+        },
         "threshold": 0.3
       },
       "XGBoost": {
@@ -123,8 +187,49 @@
         "test_auprc": 0.7982961642316174,
         "test_precision": 0.9464285714285714,
         "test_recall": 0.7066666666666667,
+        "test_f1": 0.8091603053435115,
+        "test_confusion_matrix": [
+          [
+            56884,
+            3
+          ],
+          [
+            22,
+            53
+          ]
+        ],
+        "test_bootstrap_confidence_intervals": {
+          "auprc": {
+            "lower": 0.7032401612171064,
+            "upper": 0.8787875365913518,
+            "replicates": 1000
+          },
+          "precision": {
+            "lower": 0.8863356929955291,
+            "upper": 1.0,
+            "replicates": 1000
+          },
+          "recall": {
+            "lower": 0.6025602409638554,
+            "upper": 0.805203823953824,
+            "replicates": 1000
+          },
+          "method": "percentile bootstrap, 95% CI",
+          "requested_replicates": 1000,
+          "skipped_without_positive": 0,
+          "seed": 42
+        },
         "threshold": 0.9342445731163025
       }
     }
-  }
+  },
+  "model_selection": {
+    "method": "five-fold stratified CV mean AUPRC",
+    "selected_model": "XGBoost",
+    "cv_mean_auprc": 0.8581742441597306,
+    "cv_std_auprc": 0.06425582733453772,
+    "note": "Close means are not evidence of statistical superiority."
+  },
+  "selection_note": "CV means are close and are not evidence of statistical superiority.",
+  "native_model_format": "model.xgb.json"
 }
