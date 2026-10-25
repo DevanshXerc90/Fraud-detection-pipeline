@@ -14,7 +14,7 @@ class FeatureEngineer:
     Each new feature captures a specific fraud signal:
     - LogAmount: compresses the heavy right tail of transaction amounts
     - HourOfDay: extracts the hour from the elapsed-time column
-    - IsNightTime: fraud rates spike between 2 AM and 6 AM
+    - IsNightTime: elapsed-time bucket using a documented modulo-24-hour proxy
     - V14_x_V17: interaction of two PCA components most correlated with fraud
     - VComponentsMagnitude: overall magnitude of the anonymous PCA vector
     - IsMicroTx: flag for very small charges often used to test stolen cards
@@ -60,8 +60,8 @@ class FeatureEngineer:
         # Adding 1 avoids log(0) for any zero-amount edge cases.
         result["LogAmount"] = np.log1p(amount.clip(lower=0))
 
-        # Pull the hour-of-day from the raw Time column (seconds since first tx).
-        # The dataset spans ~48 hours so we wrap around modulo 86400.
+        # This is a modulo-24-hour proxy derived from elapsed seconds, not a
+        # wall-clock timestamp.
         result["HourOfDay"] = (
             (time % 86400) / 3600
         ).astype(int).clip(0, 23)
@@ -71,7 +71,7 @@ class FeatureEngineer:
         result["HourSin"] = np.sin(2 * np.pi * result["HourOfDay"] / 24)
         result["HourCos"] = np.cos(2 * np.pi * result["HourOfDay"] / 24)
 
-        # Binary flag for late-night transactions.
+        # Binary flag for the selected elapsed-time bucket.
         result["IsNightTime"] = (
             (result["HourOfDay"] >= self.NIGHT_START)
             & (result["HourOfDay"] < self.NIGHT_END)
@@ -87,8 +87,7 @@ class FeatureEngineer:
         v_values = result[self.V_COLUMNS].values
         result["VComponentsMagnitude"] = np.sqrt(np.sum(v_values ** 2, axis=1))
 
-        # Flag for micro-transactions.  Fraudsters often run a tiny charge
-        # first to verify the card is alive before larger purchases.
+        # Flag for amounts at or below the documented dataset threshold.
         result["IsMicroTx"] = (
             amount <= self.MICRO_TX_THRESHOLD
         ).astype(int)

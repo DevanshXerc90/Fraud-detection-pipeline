@@ -2,8 +2,7 @@
   "validation_results": {
     "LogisticRegression": 0.679872506270304,
     "RandomForest": 0.7894448474182829,
-    "XGBoost": 0.8040156398634627,
-    "LightGBM": 0.04300333291034065
+    "XGBoost": 0.8040156398634627
   },
   "test_results": {
     "model": "XGBoost",
@@ -24,8 +23,166 @@
       ]
     ],
     "sample_count": 56962,
-    "fraud_prevalence": 0.0017204452090867595
+    "fraud_prevalence": 0.0017204452090867595,
+    "threshold_metrics": {
+      "0.5": {
+        "precision": 0.8645833333333334,
+        "recall": 0.8469387755102041,
+        "f1": 0.8556701030927835,
+        "confusion_matrix": [
+          [
+            56851,
+            13
+          ],
+          [
+            15,
+            83
+          ]
+        ]
+      },
+      "0.887918": {
+        "precision": 0.9302325581395349,
+        "recall": 0.8163265306122449,
+        "f1": 0.8695652173913043,
+        "confusion_matrix": [
+          [
+            56858,
+            6
+          ],
+          [
+            18,
+            80
+          ]
+        ]
+      },
+      "0.937918": {
+        "precision": 0.9404761904761905,
+        "recall": 0.8061224489795918,
+        "f1": 0.8681318681318682,
+        "confusion_matrix": [
+          [
+            56859,
+            5
+          ],
+          [
+            19,
+            79
+          ]
+        ]
+      },
+      "0.987918": {
+        "precision": 0.9620253164556962,
+        "recall": 0.7755102040816326,
+        "f1": 0.8587570621468926,
+        "confusion_matrix": [
+          [
+            56861,
+            3
+          ],
+          [
+            22,
+            76
+          ]
+        ]
+      }
+    },
+    "bootstrap_confidence_intervals": {
+      "auprc": {
+        "lower": 0.8151409550131588,
+        "upper": 0.936001302566786,
+        "replicates": 1000
+      },
+      "precision": {
+        "lower": 0.8817012288786482,
+        "upper": 0.9873417721518988,
+        "replicates": 1000
+      },
+      "recall": {
+        "lower": 0.725262123197903,
+        "upper": 0.8765635918937805,
+        "replicates": 1000
+      },
+      "method": "percentile bootstrap, 95% CI",
+      "requested_replicates": 1000,
+      "skipped_without_positive": 0,
+      "seed": 42
+    }
   },
   "best_model": "XGBoost",
-  "failed_models": {}
+  "failed_models": {},
+  "cross_validation": {
+    "LogisticRegression": {
+      "fold_auprc": [
+        0.7560210544287834,
+        0.703896537740931,
+        0.8139135377462949,
+        0.7684901939123285,
+        0.7904860680969351
+      ],
+      "mean_auprc": 0.7665614783850546,
+      "std_auprc": 0.04140144558263295,
+      "folds": 5
+    },
+    "RandomForest": {
+      "fold_auprc": [
+        0.8635967336603388,
+        0.7588822478895529,
+        0.8457493993985041,
+        0.9010647485461696,
+        0.9024375140125331
+      ],
+      "mean_auprc": 0.8543461287014196,
+      "std_auprc": 0.058669073556295664,
+      "folds": 5
+    },
+    "XGBoost": {
+      "fold_auprc": [
+        0.8549101122004833,
+        0.7557040854872945,
+        0.8545446789762662,
+        0.9152074682186612,
+        0.9105048759159486
+      ],
+      "mean_auprc": 0.8581742441597306,
+      "std_auprc": 0.06425582733453772,
+      "folds": 5
+    }
+  },
+  "temporal_evaluation": {
+    "ordering": "ascending Time (elapsed seconds)",
+    "split_sizes": {
+      "train": 199364,
+      "validation": 28481,
+      "test": 56962
+    },
+    "fraud_counts": {
+      "train": 384,
+      "validation": 33,
+      "test": 75
+    },
+    "best_model": "XGBoost",
+    "models": {
+      "LogisticRegression": {
+        "validation_auprc": 0.84328708202363,
+        "test_auprc": 0.8023734208285238,
+        "test_precision": 0.9607843137254902,
+        "test_recall": 0.6533333333333333,
+        "threshold": 0.9999997848142598
+      },
+      "RandomForest": {
+        "validation_auprc": 0.8246732835171884,
+        "test_auprc": 0.8088172863740039,
+        "test_precision": 0.9818181818181818,
+        "test_recall": 0.72,
+        "threshold": 0.3
+      },
+      "XGBoost": {
+        "validation_auprc": 0.8436469770598958,
+        "test_auprc": 0.7982961642316174,
+        "test_precision": 0.9464285714285714,
+        "test_recall": 0.7066666666666667,
+        "threshold": 0.9342445731163025
+      }
+    }
+  }
 }

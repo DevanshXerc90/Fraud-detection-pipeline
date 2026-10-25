@@ -6,7 +6,6 @@ scipy==1.13.1
 
 # Gradient boosting models
 xgboost==2.1.0
-lightgbm==4.5.0
 
 # Imbalanced learning
 imbalanced-learn==0.12.3

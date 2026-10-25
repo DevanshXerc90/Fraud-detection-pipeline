@@ -13,6 +13,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.data import DataLoader, DataPreprocessor
 from src.features import FeatureEngineer
 from src.models.trainer import find_optimal_threshold
+from src.models.evaluation import (
+    bootstrap_confidence_intervals,
+    threshold_metrics,
+)
 from fastapi.testclient import TestClient
 from src.api.main import TransactionFeatures, _predict, _state, app
 from sklearn.linear_model import LogisticRegression
@@ -129,6 +133,17 @@ class TestThresholdOptimization:
         # should land in the middle range given the clear separation in y_proba
         assert 0.3 <= threshold <= 0.7
 
+    def test_bootstrap_and_threshold_metrics(self):
+        y_true = np.array([0, 0, 0, 1, 1, 1])
+        scores = np.array([0.1, 0.2, 0.3, 0.7, 0.8, 0.9])
+        intervals = bootstrap_confidence_intervals(
+            y_true, scores, threshold=0.7, n_bootstrap=100, seed=42
+        )
+        assert intervals["requested_replicates"] == 100
+        assert intervals["auprc"]["replicates"] > 0
+        report = threshold_metrics(y_true, scores, [0.5, 0.7])
+        assert report["0.7"]["confusion_matrix"] == [[3, 0], [0, 3]]
+
 
 class TestInferenceConsistency:
     def test_api_uses_training_feature_schema(self, sample_data):
@@ -154,7 +169,7 @@ class TestInferenceConsistency:
             row = train.iloc[0]
             tx = TransactionFeatures(**row.to_dict())
             expected = float(model.predict_proba(training_features.iloc[[0]])[0, 1])
-            actual = _predict(tx).fraud_probability
+            actual = _predict(tx).fraud_score
             assert actual == round(expected, 6)
         finally:
             _state.clear()
