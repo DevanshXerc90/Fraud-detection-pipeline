@@ -1,10 +1,10 @@
 {
   "best_model": "XGBoost",
-  "best_threshold": 0.937918484210968,
+  "best_threshold": 0.9930950999259949,
   "val_auprc_all": {
-    "LogisticRegression": 0.679872506270304,
-    "RandomForest": 0.7894448474182829,
-    "XGBoost": 0.8040156398634627
+    "LogisticRegression": 0.8326946488292435,
+    "RandomForest": 0.8917433812522577,
+    "XGBoost": 0.8966763259637948
   },
   "feature_names": [
     "Time",
@@ -51,42 +51,42 @@
   "failed_models": {},
   "seed": 42,
   "evaluation_date": "2026-10-25",
-  "git_commit": "a5ff5b5530452476e307b64526d826e80280aab2",
+  "git_commit": "b573b31546d6bb1105c19294190334ca0d159776",
   "cross_validation": {
     "LogisticRegression": {
       "fold_auprc": [
-        0.7560210544287834,
-        0.703896537740931,
-        0.8139135377462949,
-        0.7684901939123285,
-        0.7904860680969351
+        0.6653240751783632,
+        0.7803498863794449,
+        0.7827359950923427,
+        0.8078597673122071,
+        0.6850844575775527
       ],
-      "mean_auprc": 0.7665614783850546,
-      "std_auprc": 0.04140144558263295,
+      "mean_auprc": 0.7442708363079822,
+      "std_auprc": 0.06434368065456042,
       "folds": 5
     },
     "RandomForest": {
       "fold_auprc": [
-        0.8635967336603388,
-        0.7588822478895529,
-        0.8457493993985041,
-        0.9010647485461696,
-        0.9024375140125331
+        0.789450497055905,
+        0.8714462303252107,
+        0.8379980097648216,
+        0.8789448887841882,
+        0.8007521687542223
       ],
-      "mean_auprc": 0.8543461287014196,
-      "std_auprc": 0.058669073556295664,
+      "mean_auprc": 0.8357183589368695,
+      "std_auprc": 0.04035331455842703,
       "folds": 5
     },
     "XGBoost": {
       "fold_auprc": [
-        0.8549101122004833,
-        0.7557040854872945,
-        0.8545446789762662,
-        0.9152074682186612,
-        0.9105048759159486
+        0.8193586732694222,
+        0.8803665662689016,
+        0.8528099153495714,
+        0.870859405173584,
+        0.8131084740634434
       ],
-      "mean_auprc": 0.8581742441597306,
-      "std_auprc": 0.06425582733453772,
+      "mean_auprc": 0.8473006068249844,
+      "std_auprc": 0.030118850939246242,
       "folds": 5
     }
   },
@@ -226,8 +226,8 @@
   "model_selection": {
     "method": "five-fold stratified CV mean AUPRC",
     "selected_model": "XGBoost",
-    "cv_mean_auprc": 0.8581742441597306,
-    "cv_std_auprc": 0.06425582733453772,
+    "cv_mean_auprc": 0.8473006068249844,
+    "cv_std_auprc": 0.030118850939246242,
     "note": "Close means are not evidence of statistical superiority."
   },
   "selection_note": "CV means are close and are not evidence of statistical superiority.",

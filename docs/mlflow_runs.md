@@ -1,6 +1,6 @@
 # Local MLflow runs
 
-Generated from the local `mlruns/` directory after `python train.py`. These are local tracking records, not remote experiment claims.
+Generated from the local `mlruns/` directory after the final `python train.py` run. These are local tracking records, not remote experiment claims.
 
 ## Experiment: `fraud-detection-sensitivity`
 
@@ -15,6 +15,15 @@ Generated from the local `mlruns/` directory after `python train.py`. These are 
 | `5b7b830efcea` | LogisticRegression | class_weight=balanced, model_name=LogisticRegression | optimal_threshold=1, val_auc_roc=0.99615, val_auprc=0.832695 |
 | `ba281bafc10d` | RandomForest | class_weight=balanced, max_depth=None, model_name=RandomForest, n_estimators=200 | optimal_threshold=0.375, val_auc_roc=0.977101, val_auprc=0.891743 |
 | `05631dfdae99` | XGBoost | colsample_bytree=0.8, learning_rate=0.05, max_depth=6, model_name=XGBoost, n_estimators=300, scale_pos_weight=599.0211480362537, subsample=0.8 | optimal_threshold=0.993095, val_auc_roc=0.994575, val_auprc=0.896676 |
+| `9d2fb66c4699` | LogisticRegression | class_weight=balanced, model_name=LogisticRegression | optimal_threshold=1, val_auc_roc=0.933379, val_auprc=0.679873 |
+| `8c094884c337` | RandomForest | class_weight=balanced, max_depth=None, model_name=RandomForest, n_estimators=200 | optimal_threshold=0.315, val_auc_roc=0.935933, val_auprc=0.789445 |
+| `d308eedf3442` | XGBoost | colsample_bytree=0.8, learning_rate=0.05, max_depth=6, model_name=XGBoost, n_estimators=300, scale_pos_weight=576.8666666666667, subsample=0.8 | optimal_threshold=0.937918, val_auc_roc=0.967876, val_auprc=0.804016 |
+| `6ed0c70f5a91` | LogisticRegression | class_weight=balanced, model_name=LogisticRegression | optimal_threshold=1, val_auc_roc=0.99615, val_auprc=0.832695 |
+| `f7df0371bdfa` | RandomForest | class_weight=balanced, max_depth=None, model_name=RandomForest, n_estimators=200 | optimal_threshold=0.375, val_auc_roc=0.977101, val_auprc=0.891743 |
+| `768f52259026` | XGBoost | colsample_bytree=0.8, learning_rate=0.05, max_depth=6, model_name=XGBoost, n_estimators=300, scale_pos_weight=599.0211480362537, subsample=0.8 | optimal_threshold=0.993095, val_auc_roc=0.994575, val_auprc=0.896676 |
+| `ed4da86cb948` | LogisticRegression | class_weight=balanced, model_name=LogisticRegression | optimal_threshold=1, val_auc_roc=0.99615, val_auprc=0.832695 |
+| `1b8e86e36633` | RandomForest | class_weight=balanced, max_depth=None, model_name=RandomForest, n_estimators=200 | optimal_threshold=0.375, val_auc_roc=0.977101, val_auprc=0.891743 |
+| `2817da43d782` | XGBoost | colsample_bytree=0.8, learning_rate=0.05, max_depth=6, model_name=XGBoost, n_estimators=300, scale_pos_weight=599.0211480362537, subsample=0.8 | optimal_threshold=0.993095, val_auc_roc=0.994575, val_auprc=0.896676 |
 
 ## Experiment: `fraud-detection`
 

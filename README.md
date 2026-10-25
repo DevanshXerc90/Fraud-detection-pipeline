@@ -15,8 +15,8 @@ Two held-out examples from the generated test set:
 
 | Example | True label | Score | Predicted class | Threshold |
 |---|---:|---:|---:|---:|
-| Correctly detected fraud | 1 | 0.999988 | 1 | 0.993095 |
-| False negative | 1 | 0.909135 | 0 | 0.993095 |
+| Correctly detected fraud | 1 | 0.999992 | 1 | 0.993095 |
+| False negative | 1 | 0.990442 | 0 | 0.993095 |
 
 These are offline dataset examples, not guarantees for new transactions.
 

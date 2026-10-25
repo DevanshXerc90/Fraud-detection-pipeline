@@ -1,128 +1,128 @@
 {
   "validation_results": {
-    "LogisticRegression": 0.679872506270304,
-    "RandomForest": 0.7894448474182829,
-    "XGBoost": 0.8040156398634627
+    "LogisticRegression": 0.8326946488292435,
+    "RandomForest": 0.8917433812522577,
+    "XGBoost": 0.8966763259637948
   },
   "test_results": {
     "model": "XGBoost",
-    "threshold": 0.937918484210968,
-    "auprc": 0.8811954716550312,
-    "auc_roc": 0.9788390560219586,
-    "precision": 0.9404761904761905,
-    "recall": 0.8061224489795918,
-    "f1": 0.8681318681318682,
+    "threshold": 0.9930950999259949,
+    "auprc": 0.8110565225510553,
+    "auc_roc": 0.9717814243999967,
+    "precision": 0.9852941176470589,
+    "recall": 0.7052631578947368,
+    "f1": 0.8220858895705522,
     "confusion_matrix": [
       [
-        56859,
-        5
+        56650,
+        1
       ],
       [
-        19,
-        79
+        28,
+        67
       ]
     ],
-    "sample_count": 56962,
-    "fraud_prevalence": 0.0017204452090867595,
+    "sample_count": 56746,
+    "fraud_prevalence": 0.0016741268107003137,
     "threshold_metrics": {
-      "0.000426": {
-        "precision": 0.03080013391362571,
-        "recall": 0.9387755102040817,
-        "f1": 0.05964343598055105,
+      "0.002949": {
+        "precision": 0.11248285322359397,
+        "recall": 0.8631578947368421,
+        "f1": 0.19902912621359223,
         "confusion_matrix": [
           [
-            53969,
-            2895
+            56004,
+            647
           ],
           [
-            6,
-            92
+            13,
+            82
           ]
         ]
       },
       "0.5": {
-        "precision": 0.8645833333333334,
-        "recall": 0.8469387755102041,
-        "f1": 0.8556701030927835,
+        "precision": 0.9146341463414634,
+        "recall": 0.7894736842105263,
+        "f1": 0.847457627118644,
         "confusion_matrix": [
           [
-            56851,
-            13
+            56644,
+            7
           ],
           [
-            15,
-            83
+            20,
+            75
           ]
         ]
       },
-      "0.887918": {
-        "precision": 0.9302325581395349,
-        "recall": 0.8163265306122449,
-        "f1": 0.8695652173913043,
+      "0.943095": {
+        "precision": 0.971830985915493,
+        "recall": 0.7263157894736842,
+        "f1": 0.8313253012048193,
         "confusion_matrix": [
           [
-            56858,
-            6
+            56649,
+            2
           ],
           [
-            18,
-            80
+            26,
+            69
           ]
         ]
       },
-      "0.937918": {
-        "precision": 0.9404761904761905,
-        "recall": 0.8061224489795918,
-        "f1": 0.8681318681318682,
+      "0.993095": {
+        "precision": 0.9852941176470589,
+        "recall": 0.7052631578947368,
+        "f1": 0.8220858895705522,
         "confusion_matrix": [
           [
-            56859,
-            5
+            56650,
+            1
           ],
           [
-            19,
-            79
+            28,
+            67
           ]
         ]
       },
-      "0.987918": {
-        "precision": 0.9620253164556962,
-        "recall": 0.7755102040816326,
-        "f1": 0.8587570621468926,
+      "1.0": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
         "confusion_matrix": [
           [
-            56861,
-            3
+            56651,
+            0
           ],
           [
-            22,
-            76
+            95,
+            0
           ]
         ]
       }
     },
     "validation_recall_target": 0.9,
-    "validation_recall_target_threshold": 0.00042611523531377316,
+    "validation_recall_target_threshold": 0.0029491125606000423,
     "test_confusion_counts": {
-      "true_negatives": 56859,
-      "false_positives": 5,
-      "false_negatives": 19,
-      "true_positives": 79
+      "true_negatives": 56650,
+      "false_positives": 1,
+      "false_negatives": 28,
+      "true_positives": 67
     },
     "bootstrap_confidence_intervals": {
       "auprc": {
-        "lower": 0.8151409550131588,
-        "upper": 0.936001302566786,
+        "lower": 0.7277293774234267,
+        "upper": 0.8877864578578938,
         "replicates": 1000
       },
       "precision": {
-        "lower": 0.8817012288786482,
-        "upper": 0.9873417721518988,
+        "lower": 0.9523617511520737,
+        "upper": 1.0,
         "replicates": 1000
       },
       "recall": {
-        "lower": 0.725262123197903,
-        "upper": 0.8765635918937805,
+        "lower": 0.614429718875502,
+        "upper": 0.7901234567901234,
         "replicates": 1000
       },
       "method": "percentile bootstrap, 95% CI",
@@ -136,38 +136,38 @@
   "cross_validation": {
     "LogisticRegression": {
       "fold_auprc": [
-        0.7560210544287834,
-        0.703896537740931,
-        0.8139135377462949,
-        0.7684901939123285,
-        0.7904860680969351
+        0.6653240751783632,
+        0.7803498863794449,
+        0.7827359950923427,
+        0.8078597673122071,
+        0.6850844575775527
       ],
-      "mean_auprc": 0.7665614783850546,
-      "std_auprc": 0.04140144558263295,
+      "mean_auprc": 0.7442708363079822,
+      "std_auprc": 0.06434368065456042,
       "folds": 5
     },
     "RandomForest": {
       "fold_auprc": [
-        0.8635967336603388,
-        0.7588822478895529,
-        0.8457493993985041,
-        0.9010647485461696,
-        0.9024375140125331
+        0.789450497055905,
+        0.8714462303252107,
+        0.8379980097648216,
+        0.8789448887841882,
+        0.8007521687542223
       ],
-      "mean_auprc": 0.8543461287014196,
-      "std_auprc": 0.058669073556295664,
+      "mean_auprc": 0.8357183589368695,
+      "std_auprc": 0.04035331455842703,
       "folds": 5
     },
     "XGBoost": {
       "fold_auprc": [
-        0.8549101122004833,
-        0.7557040854872945,
-        0.8545446789762662,
-        0.9152074682186612,
-        0.9105048759159486
+        0.8193586732694222,
+        0.8803665662689016,
+        0.8528099153495714,
+        0.870859405173584,
+        0.8131084740634434
       ],
-      "mean_auprc": 0.8581742441597306,
-      "std_auprc": 0.06425582733453772,
+      "mean_auprc": 0.8473006068249844,
+      "std_auprc": 0.030118850939246242,
       "folds": 5
     }
   },
@@ -318,6 +318,8 @@
       "0_2": 271,
       "1_2": 56
     },
+    "stratified_test_frauds_with_train_validation_twin": 8,
+    "all_frauds_with_twin_in_another_stratified_split": 22,
     "temporal_cross_split_overlap": {
       "0_1": 0,
       "0_2": 0,
@@ -325,10 +327,139 @@
     },
     "policy": "Retain duplicates: repeated transactions may be legitimate events. Report overlap rather than silently dropping rows."
   },
+  "duplicate_sensitivity": {
+    "current_stratified": {
+      "deduplicated_before_split": false,
+      "split_sizes": {
+        "train": 199364,
+        "validation": 28481,
+        "test": 56962
+      },
+      "fraud_counts": {
+        "train": 345,
+        "validation": 49,
+        "test": 98
+      },
+      "selected_model": "XGBoost",
+      "threshold": 0.937918484210968,
+      "auprc": 0.8811954716550312,
+      "precision": 0.9404761904761905,
+      "recall": 0.8061224489795918,
+      "confusion_counts": {
+        "true_negatives": 56859,
+        "false_positives": 5,
+        "false_negatives": 19,
+        "true_positives": 79
+      },
+      "bootstrap_confidence_intervals": {
+        "auprc": {
+          "lower": 0.8151409550131588,
+          "upper": 0.936001302566786,
+          "replicates": 1000
+        },
+        "precision": {
+          "lower": 0.8817012288786482,
+          "upper": 0.9873417721518988,
+          "replicates": 1000
+        },
+        "recall": {
+          "lower": 0.725262123197903,
+          "upper": 0.8765635918937805,
+          "replicates": 1000
+        },
+        "method": "percentile bootstrap, 95% CI",
+        "requested_replicates": 1000,
+        "skipped_without_positive": 0,
+        "seed": 42
+      }
+    },
+    "deduplicated_before_split": {
+      "deduplicated_before_split": true,
+      "split_sizes": {
+        "train": 198607,
+        "validation": 28373,
+        "test": 56746
+      },
+      "fraud_counts": {
+        "train": 331,
+        "validation": 47,
+        "test": 95
+      },
+      "selected_model": "XGBoost",
+      "threshold": 0.9930950999259949,
+      "auprc": 0.8110565225510553,
+      "precision": 0.9852941176470589,
+      "recall": 0.7052631578947368,
+      "confusion_counts": {
+        "true_negatives": 56650,
+        "false_positives": 1,
+        "false_negatives": 28,
+        "true_positives": 67
+      },
+      "bootstrap_confidence_intervals": {
+        "auprc": {
+          "lower": 0.7277293774234267,
+          "upper": 0.8877864578578938,
+          "replicates": 1000
+        },
+        "precision": {
+          "lower": 0.9523617511520737,
+          "upper": 1.0,
+          "replicates": 1000
+        },
+        "recall": {
+          "lower": 0.614429718875502,
+          "upper": 0.7901234567901234,
+          "replicates": 1000
+        },
+        "method": "percentile bootstrap, 95% CI",
+        "requested_replicates": 1000,
+        "skipped_without_positive": 0,
+        "seed": 42
+      }
+    },
+    "current_split_clean_test": {
+      "deduplicated_before_split": false,
+      "test_restricted_to_no_train_validation_twin": true,
+      "test_rows": 56618,
+      "fraud_count": 90,
+      "auprc": 0.8683178339205996,
+      "precision": 0.9342105263157895,
+      "recall": 0.7888888888888889,
+      "confusion_counts": {
+        "true_negatives": 56523,
+        "false_positives": 5,
+        "false_negatives": 19,
+        "true_positives": 71
+      },
+      "bootstrap_confidence_intervals": {
+        "auprc": {
+          "lower": 0.7998355346433421,
+          "upper": 0.9259468833550505,
+          "replicates": 1000
+        },
+        "precision": {
+          "lower": 0.8714285714285714,
+          "upper": 0.9853046218487396,
+          "replicates": 1000
+        },
+        "recall": {
+          "lower": 0.7040816326530612,
+          "upper": 0.8717948717948718,
+          "replicates": 1000
+        },
+        "method": "percentile bootstrap, 95% CI",
+        "requested_replicates": 1000,
+        "skipped_without_positive": 0,
+        "seed": 42
+      },
+      "threshold": 0.937918484210968
+    }
+  },
   "provenance": {
     "seed": 42,
     "split_strategy": "stratified 70/10/20 with random_state=42",
-    "git_commit": "a5ff5b5530452476e307b64526d826e80280aab2",
+    "git_commit": "b573b31546d6bb1105c19294190334ca0d159776",
     "library_versions": {
       "python": "3.12.5",
       "numpy": "1.26.4",
