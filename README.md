@@ -188,12 +188,4 @@ models/        generated compatible artifacts and metrics
 outputs/       generated plots and prediction examples
 ```
 
-## Limitations
 
-This is an offline portfolio experiment on historical 2013 anonymized PCA
-data covering approximately two days, with low fraud prevalence and
-unspecified currency. Bootstrap intervals do not capture all selection
-uncertainty. The scores are not calibrated probabilities. The experiments do
-not establish future performance, fairness, drift behavior, production
-throughput, or production readiness. Docker and Render deployment require
-their respective environments; Render was not tested in this verification.
