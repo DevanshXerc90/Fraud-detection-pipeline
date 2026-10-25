@@ -1,0 +1,11 @@
+data/*.csv
+mlruns/
+mlartifacts/
+outputs/
+__pycache__/
+*.py[cod]
+.git/
+.pytest_cache/
+tests/
+INTERVIEW_PREP.md
+PROJECT_DOCUMENTATION.md

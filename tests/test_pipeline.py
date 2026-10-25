@@ -13,7 +13,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.data import DataLoader, DataPreprocessor
 from src.features import FeatureEngineer
 from src.models.trainer import find_optimal_threshold
-from src.api.main import TransactionFeatures, _predict, _state
+from fastapi.testclient import TestClient
+from src.api.main import TransactionFeatures, _predict, _state, app
 from sklearn.linear_model import LogisticRegression
 
 
@@ -155,6 +156,44 @@ class TestInferenceConsistency:
             expected = float(model.predict_proba(training_features.iloc[[0]])[0, 1])
             actual = _predict(tx).fraud_probability
             assert actual == round(expected, 6)
+        finally:
+            _state.clear()
+            _state.update(previous)
+
+    def test_batch_and_invalid_requests(self, sample_data):
+        train = sample_data.drop(columns=["Class"])
+        labels = sample_data["Class"]
+        feature_engineer = FeatureEngineer().fit(train)
+        preprocessor = DataPreprocessor().fit(train)
+        training_features = preprocessor.transform(
+            feature_engineer.transform(train)
+        )
+        model = LogisticRegression(max_iter=200).fit(training_features, labels)
+        previous = _state.copy()
+        _state.update({
+            "model": model,
+            "preprocessor": preprocessor,
+            "feature_engineer": feature_engineer,
+            "feature_names": list(training_features.columns),
+            "threshold": 0.5,
+            "load_error": None,
+        })
+        try:
+            payload = train.iloc[0].to_dict()
+            client = TestClient(app)
+            batch = client.post(
+                "/predict/batch",
+                json={"transactions": [payload, payload]},
+            )
+            assert batch.status_code == 200
+            assert batch.json()["total_transactions"] == 2
+            assert len(batch.json()["predictions"]) == 2
+            assert client.post(
+                "/predict", json={**payload, "Amount": -1}
+            ).status_code == 422
+            assert client.post(
+                "/predict/batch", json={"transactions": []}
+            ).status_code == 422
         finally:
             _state.clear()
             _state.update(previous)

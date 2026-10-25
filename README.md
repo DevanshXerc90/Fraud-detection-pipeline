@@ -110,11 +110,17 @@ selected using validation data only. The held-out test metrics are written to
 `models/results.json` after each run; the bundled artifacts are not a fresh benchmark.
 
 | Model | Validation AUPRC |
-|---|---|
-| Logistic Regression | See `models/results.json` |
-| Random Forest | See `models/results.json` |
-| XGBoost | See `models/results.json` |
-| LightGBM | See `models/results.json` |
+|---|---:|
+| Logistic Regression | 0.6799 |
+| Random Forest | 0.7894 |
+| **XGBoost** | **0.8040** |
+| LightGBM | 0.0430 |
+
+The selected XGBoost model used a validation-only F1 threshold of `0.937918`.
+On the separate 56,962-row test set, it achieved AUPRC `0.8812`, ROC AUC
+`0.9788`, precision `0.9405`, recall `0.8061`, and F1 `0.8681`. The test set
+contained 98 fraud cases (0.1720%). These are results from the bundled
+stratified offline run, not a guarantee of future production performance.
 
 ---
 
@@ -128,7 +134,7 @@ uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/health` | Check if the model and preprocessor are loaded |
+| `GET` | `/health` | Check application availability and model readiness |
 | `POST` | `/predict` | Score a single transaction |
 | `POST` | `/predict/batch` | Score multiple transactions |
 | `GET` | `/docs` | Interactive Swagger UI |
@@ -138,17 +144,17 @@ uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 ```bash
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
-  -d '{"Time": 476, "V1": -1.36, "V2": -0.07, ..., "V28": 0.03, "Amount": 149.62}'
+  -d '{"Time":476,"V1":0,"V2":0,"V3":0,"V4":0,"V5":0,"V6":0,"V7":0,"V8":0,"V9":0,"V10":0,"V11":0,"V12":0,"V13":0,"V14":0,"V15":0,"V16":0,"V17":0,"V18":0,"V19":0,"V20":0,"V21":0,"V22":0,"V23":0,"V24":0,"V25":0,"V26":0,"V27":0,"V28":0,"Amount":149.62}'
 ```
 
 **Example Response**
 
 ```json
 {
-  "fraud_probability": 0.873,
-  "is_fraud": true,
-  "risk_level": "HIGH",
-  "threshold": 0.5
+  "fraud_probability": 0.00025,
+  "is_fraud": false,
+  "risk_level": "LOW",
+  "threshold": 0.937918
 }
 ```
 
@@ -162,13 +168,22 @@ pytest tests/ -v
 
 > Tests use **synthetic data** and run without the Kaggle dataset — no setup required.
 
+The full training run requires the Kaggle CSV. Regenerate compatible artifacts
+with `python train.py` before starting the API. The API requires
+`model.pkl`, `preprocessor.pkl`, `feature_engineer.pkl`, and `metadata.json`
+in `models/`.
+
 ---
 
 ## 🐳 Docker
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
+
+The Docker image contains the tracked model artifacts but intentionally
+excludes the local dataset, MLflow runs, SHAP output, and tests. The Compose
+healthcheck uses Python's standard library and does not require `curl`.
 
 ---
 
@@ -213,8 +228,6 @@ fraud-detection-pipeline/
 │   ├── models/         # ModelTrainer (trainer.py), SHAP explainer
 │   └── api/            # FastAPI inference endpoint
 ├── tests/              # pytest suite with synthetic data
-├── outputs/
-│   └── shap/           # shap_summary.png, shap_waterfall.png
 ├── train.py            # Main training entry point
 └── models/             # Saved model, preprocessing, and metadata artifacts
 ```
