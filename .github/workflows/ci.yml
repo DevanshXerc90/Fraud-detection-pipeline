@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [main, accuracy-reproducibility-interview]
+    branches: [main, eval-reproducibility]
   pull_request:
     branches: [main]
 

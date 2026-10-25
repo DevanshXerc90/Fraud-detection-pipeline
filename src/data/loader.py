@@ -45,11 +45,17 @@ class DataLoader:
         test_size: float = 0.2,
         val_size: float = 0.1,
         random_state: int = 42,
+        deduplicate: bool = True,
     ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """
         Stratified split into train / val / test.
         Keeps the fraud ratio consistent across all three sets.
+
+        By default exact duplicate rows are removed before splitting. Pass
+        ``deduplicate=False`` to reproduce the historical split behavior.
         """
+        if deduplicate:
+            df = df.drop_duplicates().reset_index(drop=True)
         # first pull out the test set
         train_val, test = train_test_split(
             df,
