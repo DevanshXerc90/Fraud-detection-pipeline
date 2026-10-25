@@ -6,8 +6,9 @@ Trains three models:
     - Random Forest        (sklearn, class_weight="balanced")
     - XGBoost              (scale_pos_weight = neg / pos)
 
-All four are evaluated on validation AUPRC; the highest-scoring model
-is designated the "best" and is the one saved and used for inference.
+Five-fold cross-validation selects the model by mean training-partition
+AUPRC. Validation data tunes the selected model's threshold, and the test
+set is used only for final evaluation.
 """
 from __future__ import annotations
 
@@ -69,6 +70,15 @@ def find_optimal_threshold(
     return float(thresholds[best_idx])
 
 
+def find_threshold_for_recall(
+    y_true: np.ndarray, y_proba: np.ndarray, target_recall: float = 0.90
+) -> float:
+    """Return the highest threshold whose validation recall meets the target."""
+    precision, recall, thresholds = precision_recall_curve(y_true, y_proba)
+    candidates = thresholds[recall[:-1] >= target_recall]
+    return float(candidates[-1]) if len(candidates) else 0.0
+
+
 # ── ModelTrainer ──────────────────────────────────────────────────────────────
 
 class ModelTrainer:
@@ -83,10 +93,12 @@ class ModelTrainer:
         self._models: Dict[str, object] = {}   # name → fitted estimator
         self._val_auprc: Dict[str, float] = {}
         self._thresholds: Dict[str, float] = {}
+        self._recall_target_thresholds: Dict[str, float] = {}
         self.failures: Dict[str, str] = {}
         self.best_model_name: str = ""
         self.best_model = None
         self.best_threshold: float = 0.5
+        self.model_selection: Dict[str, object] = {}
 
     # ── Training ─────────────────────────────────────────────────────────────
 
@@ -96,6 +108,7 @@ class ModelTrainer:
         y_train: pd.Series,
         X_val: pd.DataFrame,
         y_val: pd.Series,
+        cv_results: Dict[str, dict] | None = None,
     ) -> Dict[str, float]:
         """
         Train all three models; log each to a separate MLflow run.
@@ -125,18 +138,38 @@ class ModelTrainer:
                 self.failures[name] = str(exc)
                 print(f"FAILED: {exc}")
 
-        # Select winner
+        # Select winner using training-only cross-validation when provided.
         if not self._val_auprc:
             raise RuntimeError(
                 "All configured models failed: "
                 + "; ".join(f"{name}: {error}" for name, error in self.failures.items())
             )
-        self.best_model_name = max(self._val_auprc, key=self._val_auprc.get)
+        if cv_results:
+            self.best_model_name = max(
+                self._val_auprc,
+                key=lambda name: (
+                    cv_results.get(name, {}).get("mean_auprc", -1.0),
+                    -list(self._val_auprc).index(name),
+                ),
+            )
+            self.model_selection = {
+                "method": "five-fold stratified CV mean AUPRC",
+                "selected_model": self.best_model_name,
+                "cv_mean_auprc": cv_results[self.best_model_name]["mean_auprc"],
+                "cv_std_auprc": cv_results[self.best_model_name]["std_auprc"],
+                "note": "Close means are not evidence of statistical superiority.",
+            }
+        else:
+            self.best_model_name = max(self._val_auprc, key=self._val_auprc.get)
+            self.model_selection = {
+                "method": "validation AUPRC fallback",
+                "selected_model": self.best_model_name,
+            }
         self.best_model = self._models[self.best_model_name]
         self.best_threshold = self._thresholds[self.best_model_name]
 
         print(f"\n{'=' * 60}")
-        print("  Model Comparison (Validation AUPRC)")
+        print("  Model Comparison (Validation AUPRC; CV selects saved model)")
         print(f"  {'Model':<22} {'AUPRC':>8}  {'Threshold':>10}")
         print(f"  {'-' * 44}")
         for name in model_specs:
@@ -196,6 +229,9 @@ class ModelTrainer:
             auprc = average_precision_score(y_val, val_proba)
             auc_roc = roc_auc_score(y_val, val_proba)
             threshold = find_optimal_threshold(y_val.values, val_proba)
+            recall_target_threshold = find_threshold_for_recall(
+                y_val.values, val_proba
+            )
 
             # Log hyperparameters and metrics
             mlflow.log_params(self._extract_params(model, name))
@@ -211,6 +247,7 @@ class ModelTrainer:
         self._models[name] = model
         self._val_auprc[name] = auprc
         self._thresholds[name] = threshold
+        self._recall_target_thresholds[name] = recall_target_threshold
         print(f"AUPRC={auprc:.4f}")
 
     @staticmethod
@@ -259,6 +296,11 @@ class ModelTrainer:
             round(min(1.0, self.best_threshold + 0.05), 6),
         })
 
+        recall_target_threshold = self._recall_target_thresholds[
+            self.best_model_name
+        ]
+        thresholds.append(round(recall_target_threshold, 6))
+        thresholds = sorted(set(thresholds))
         metrics = {
             "model":     self.best_model_name,
             "threshold": self.best_threshold,
@@ -273,6 +315,14 @@ class ModelTrainer:
             "threshold_metrics": threshold_metrics(
                 y_test, proba, thresholds
             ),
+            "validation_recall_target": 0.90,
+            "validation_recall_target_threshold": recall_target_threshold,
+            "test_confusion_counts": {
+                "true_negatives": matrix[0][0],
+                "false_positives": matrix[0][1],
+                "false_negatives": matrix[1][0],
+                "true_positives": matrix[1][1],
+            },
             "bootstrap_confidence_intervals": bootstrap_confidence_intervals(
                 y_test, proba, self.best_threshold
             ),
@@ -323,7 +373,14 @@ class ModelTrainer:
             "git_commit":       git_revision(),
             "cross_validation": cv_results,
             "temporal_evaluation": temporal_results,
+            "model_selection": self.model_selection,
+            "selection_note": (
+                "CV means are close and are not evidence of statistical superiority."
+            ),
         }
+        if self.best_model_name == "XGBoost":
+            self.best_model.save_model(out / "model.xgb.json")
+            metadata["native_model_format"] = "model.xgb.json"
         with open(out / "metadata.json", "w") as f:
             json.dump(metadata, f, indent=2)
 

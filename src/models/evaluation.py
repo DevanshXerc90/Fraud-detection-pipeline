@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import numpy as np
+import pandas as pd
 from sklearn.base import clone
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import (
@@ -88,6 +89,9 @@ def temporal_evaluation(raw_data, model_factory):
         )
         threshold = float(thresholds[int(np.argmax(f1))])
         test_score = fitted.predict_proba(X_test)[:, 1]
+        confusion = confusion_matrix(
+            y_test, test_score >= threshold, labels=[0, 1]
+        ).tolist()
         model_results[name] = {
             "validation_auprc": float(
                 average_precision_score(y_validation, validation_score)
@@ -98,6 +102,13 @@ def temporal_evaluation(raw_data, model_factory):
             ),
             "test_recall": float(
                 recall_score(y_test, test_score >= threshold, zero_division=0)
+            ),
+            "test_f1": float(
+                f1_score(y_test, test_score >= threshold, zero_division=0)
+            ),
+            "test_confusion_matrix": confusion,
+            "test_bootstrap_confidence_intervals": bootstrap_confidence_intervals(
+                y_test, test_score, threshold
             ),
             "threshold": threshold,
         }
@@ -118,6 +129,41 @@ def temporal_evaluation(raw_data, model_factory):
         },
         "best_model": best_name,
         "models": model_results,
+    }
+
+
+def duplicate_audit(df, stratified_parts, temporal_parts):
+    """Measure exact duplicate rows and overlap without dropping any data."""
+    duplicate_mask = df.duplicated(keep=False)
+
+    def overlap_counts(parts):
+        hashes = [
+            set(pd.util.hash_pandas_object(part, index=False).tolist())
+            for part in parts
+        ]
+        return {
+            f"{left}_{right}": len(hashes[left] & hashes[right])
+            for left, right in ((0, 1), (0, 2), (1, 2))
+        }
+
+    return {
+        "exact_duplicate_rows_in_dataset": int(duplicate_mask.sum()),
+        "duplicate_groups": int(
+            df.loc[duplicate_mask].drop_duplicates().shape[0]
+        ),
+        "duplicate_rows_beyond_first": int(df.duplicated().sum()),
+        "stratified_within_split": {
+            name: int(part.duplicated().sum())
+            for name, part in stratified_parts.items()
+        },
+        "stratified_cross_split_overlap": overlap_counts(
+            list(stratified_parts.values())
+        ),
+        "temporal_cross_split_overlap": overlap_counts(temporal_parts),
+        "policy": (
+            "Retain duplicates: repeated transactions may be legitimate events. "
+            "Report overlap rather than silently dropping rows."
+        ),
     }
 
 
