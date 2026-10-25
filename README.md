@@ -5,18 +5,29 @@ Kaggle/ULB credit-card dataset. The chronological evaluation leads the report:
 XGBoost achieved test AUPRC **0.7983 (95% bootstrap CI 0.7032–0.8788)**,
 precision `0.9464`, and recall `0.7067` on later elapsed-time records.
 
+The verified environment is Python `3.12.5` with pandas `2.2.2`, NumPy
+`1.26.4`, scikit-learn `1.5.1`, and XGBoost `2.1.0`. The pipeline uses seed
+`42`; reproduce the experiment with `python train.py` after downloading the
+dataset described below. These are offline benchmark results, not a guarantee
+of future or production performance. False positives create investigation
+workload, while false negatives allow fraudulent transactions to pass
+undetected; no production cost or latency benchmark has been established.
+
 Run the reproducible pipeline after downloading `data/creditcard.csv`:
 
 ```bash
 python train.py
 ```
 
-Two held-out examples from the generated test set:
+The following examples are from the **deduplicated stratified test set**, not
+the chronological test set used for the headline result. They are generated
+from [`prediction_examples.json`](outputs/evaluation/prediction_examples.json)
+and verified against the saved artifacts.
 
-| Example | True label | Score | Predicted class | Threshold |
-|---|---:|---:|---:|---:|
-| Correctly detected fraud | 1 | 0.999992 | 1 | 0.993095 |
-| False negative | 1 | 0.990442 | 0 | 0.993095 |
+| Example | Evaluation context | True label | Score | Predicted class | Threshold |
+|---|---|---:|---:|---:|---:|
+| Correctly detected fraud | Deduplicated stratified test | 1 | 0.999992 | 1 | 0.993095 |
+| False negative | Deduplicated stratified test | 1 | 0.990442 | 0 | 0.993095 |
 
 These are offline dataset examples, not guarantees for new transactions.
 
@@ -35,7 +46,7 @@ and save it as `data/creditcard.csv`. The dataset is not committed.
 
 ```text
 CSV -> split policy -> fitted feature engineering -> fitted RobustScaler
-    -> five-fold model comparison -> validation threshold selection
+    -> model comparison -> validation threshold selection
     -> held-out evaluation -> model/preprocessor artifacts -> FastAPI
 ```
 
@@ -44,7 +55,14 @@ The default split removes exact duplicate rows before a stratified
 the historical duplicate-containing split. Feature engineering and scaling
 are fitted on training data only. Model selection uses five-fold mean AUPRC on
 the training partition; validation selects the operating threshold; the test
-set is evaluated once.
+set is evaluated once. The chronological path is separate: it sorts by
+elapsed `Time`, fits preprocessing and each candidate model on the earlier
+70%, selects the model with the highest validation AUPRC on the next 10%, and
+selects that model's F1-maximising threshold from the same validation
+predictions. Only then is the later 20% evaluated. This temporal selection is
+statistically fragile because validation contains only 33 fraud cases; the
+reported bootstrap intervals quantify test-sample variation and do not include
+model- or threshold-selection uncertainty.
 
 ## Chronological evaluation
 
@@ -97,18 +115,23 @@ beyond each group's first row. In the historical stratified split, 8 of the
 98 test frauds have an identical twin in train or validation; 22 of all 492
 fraud rows have a twin in another stratified partition.
 
-| Evaluation | Test rows/frauds | AUPRC | Precision | Recall |
-|---|---:|---:|---:|---:|
-| Current duplicate-containing split | 56,962 / 98 | 0.8812 | 0.9405 | 0.8061 |
-| Deduplicate before splitting | 56,746 / 95 | 0.8111 | 0.9853 | 0.7053 |
-| Current split, no train/validation twin in test | 56,618 / 90 | 0.8683 | 0.9342 | 0.7889 |
+| Evaluation | Test rows/frauds | Threshold | AUPRC | Precision | Recall |
+|---|---:|---:|---:|---:|---:|
+| Current duplicate-containing split | 56,962 / 98 | 0.937918 | 0.8812 | 0.9405 | 0.8061 |
+| Deduplicate before splitting | 56,746 / 95 | 0.993095 | 0.8111 | 0.9853 | 0.7053 |
+| Current split, no train/validation twin in test | 56,618 / 90 | 0.937918 | 0.8683 | 0.9342 | 0.7889 |
 
 The deduplicated results differ materially from the historical results, so
-the default now deduplicates before splitting. All three result objects,
+the default now deduplicates before splitting. This is a conservative
+evaluation policy to prevent identical rows from being distributed across
+partitions and making performance look better than it may be; it does not
+prove that repeated transactions are invalid, remove all forms of leakage, or
+improve real-world performance. Deduplication happens before the stratified
+split and can remove legitimate repeated events from that evaluation. The
+historical `deduplicate=False` mode remains available to reproduce the
+duplicate-containing comparison. All three result objects, thresholds,
 confusion counts, and 1,000-sample bootstrap intervals are in
-[`models/results.json`](models/results.json). Duplicates were not silently
-dropped from the source data: repeated transactions may be legitimate events,
-so both policies remain available for reproducibility.
+[`models/results.json`](models/results.json).
 
 ## Threshold trade-offs
 
@@ -144,8 +167,25 @@ Source data is [`precision_recall_curve.json`](outputs/evaluation/precision_reca
 
 ## API and artifacts
 
+Start the API and open the interactive documentation:
+
 ```bash
 uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+```
+
+Then visit `http://localhost:8000/docs`. A verified `/predict` request using
+the correctly detected fraud example above is:
+
+```bash
+curl -X POST http://localhost:8000/predict ^
+  -H "Content-Type: application/json" ^
+  -d "{\"Time\":41237.0,\"V1\":-10.28178404,\"V2\":6.302384784,\"V3\":-13.27171803,\"V4\":8.925115476,\"V5\":-9.975578311,\"V6\":-2.832513464,\"V7\":-12.70325266,\"V8\":6.706845839,\"V9\":-7.078423958,\"V10\":-12.80568319,\"V11\":6.786058302,\"V12\":-13.06423989,\"V13\":1.179524511,\"V14\":-13.69487304,\"V15\":0.951479176,\"V16\":-10.95428573,\"V17\":-20.58359279,\"V18\":-7.517262132,\"V19\":2.872353636,\"V20\":-0.247647528,\"V21\":2.479413508,\"V22\":0.366932842,\"V23\":0.042804648,\"V24\":0.478278892,\"V25\":0.157770818,\"V26\":0.329900959,\"V27\":0.163504341,\"V28\":-0.485552213,\"Amount\":118.3}"
+```
+
+Verified response from the saved artifacts:
+
+```json
+{"fraud_score":0.999992,"is_fraud":true,"risk_level":"CRITICAL","threshold":0.9930950999259949}
 ```
 
 Endpoints are `/health`, `/predict`, `/predict/batch`, and `/docs`.
@@ -187,13 +227,3 @@ train.py       end-to-end training command
 models/        generated compatible artifacts and metrics
 outputs/       generated plots and prediction examples
 ```
-
-## Limitations
-
-This is an offline portfolio experiment on historical 2013 anonymized PCA
-data covering approximately two days, with low fraud prevalence and
-unspecified currency. Bootstrap intervals do not capture all selection
-uncertainty. The scores are not calibrated probabilities. The experiments do
-not establish future performance, fairness, drift behavior, production
-throughput, or production readiness. Docker and Render deployment require
-their respective environments; Render was not tested in this verification.
