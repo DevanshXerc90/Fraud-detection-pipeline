@@ -12,13 +12,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.data import DataLoader, DataPreprocessor
 from src.features import FeatureEngineer
-from src.models.trainer import find_optimal_threshold
+from src.models.trainer import find_optimal_threshold, find_threshold_for_recall
 from src.models.evaluation import (
     bootstrap_confidence_intervals,
     threshold_metrics,
 )
 from fastapi.testclient import TestClient
-from src.api.main import TransactionFeatures, _predict, _state, app
+from src.api.main import TransactionFeatures, _predict, _risk_level, _state, app
 from sklearn.linear_model import LogisticRegression
 
 
@@ -143,6 +143,28 @@ class TestThresholdOptimization:
         assert intervals["auprc"]["replicates"] > 0
         report = threshold_metrics(y_true, scores, [0.5, 0.7])
         assert report["0.7"]["confusion_matrix"] == [[3, 0], [0, 3]]
+
+    def test_recall_target_uses_validation_scores(self):
+        y_true = np.array([0, 0, 0, 1, 1, 1])
+        scores = np.array([0.1, 0.2, 0.3, 0.7, 0.8, 0.9])
+        threshold = find_threshold_for_recall(y_true, scores, 0.9)
+        assert threshold == 0.7
+
+
+class TestRiskBands:
+    @pytest.mark.parametrize(
+        ("score", "expected"),
+        [
+            (0.399999, "LOW"),
+            (0.4, "MEDIUM"),
+            (0.699999, "MEDIUM"),
+            (0.7, "HIGH"),
+            (0.899999, "HIGH"),
+            (0.9, "CRITICAL"),
+        ],
+    )
+    def test_risk_boundaries(self, score, expected):
+        assert _risk_level(score) == expected
 
 
 class TestInferenceConsistency:
