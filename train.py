@@ -24,6 +24,12 @@ from src.models.shap_explainer import explain as shap_explain
 
 
 def main(args):
+    if args.skip_features:
+        raise ValueError(
+            "Feature engineering cannot be skipped because the API requires "
+            "the fitted feature_engineer.pkl artifact."
+        )
+
     # ── 1. Load data ───────────────────────────────────────
     print("\n" + "=" * 60)
     print("  FRAUD DETECTION PIPELINE  (4 models + SHAP)")
@@ -36,13 +42,11 @@ def main(args):
     train_df, val_df, test_df = loader.split(df)
 
     # ── 3. Feature engineering (fit on raw training data only) ──
-    fe = None
-    if not args.skip_features:
-        fe = FeatureEngineer()
-        train_df = fe.fit_transform(train_df)
-        val_df = fe.transform(val_df)
-        test_df = fe.transform(test_df)
-        print(f"Features after engineering: {train_df.shape[1] - 1}")
+    fe = FeatureEngineer()
+    train_df = fe.fit_transform(train_df)
+    val_df = fe.transform(val_df)
+    test_df = fe.transform(test_df)
+    print(f"Features after engineering: {train_df.shape[1] - 1}")
 
     # ── 4. Preprocess (fit on training data only) ──────────
     preprocessor = DataPreprocessor()
