@@ -146,6 +146,33 @@ def duplicate_audit(df, stratified_parts, temporal_parts):
             for left, right in ((0, 1), (0, 2), (1, 2))
         }
 
+    stratified_hashes = {
+        name: set(pd.util.hash_pandas_object(part, index=False).tolist())
+        for name, part in stratified_parts.items()
+    }
+    all_other_hashes = {
+        name: set().union(
+            *(hashes for other, hashes in stratified_hashes.items() if other != name)
+        )
+        for name in stratified_hashes
+    }
+    test = stratified_parts["test"]
+    test_hashes = pd.util.hash_pandas_object(test, index=False)
+    test_fraud_twin_mask = (
+        (test["Class"].to_numpy() == 1)
+        & test_hashes.isin(
+            stratified_hashes["train"] | stratified_hashes["validation"]
+        ).to_numpy()
+    )
+    all_fraud_twin_count = 0
+    for name, part in stratified_parts.items():
+        hashes = pd.util.hash_pandas_object(part, index=False)
+        all_fraud_twin_count += int(
+            (
+                (part["Class"].to_numpy() == 1)
+                & hashes.isin(all_other_hashes[name]).to_numpy()
+            ).sum()
+        )
     return {
         "exact_duplicate_rows_in_dataset": int(duplicate_mask.sum()),
         "duplicate_groups": int(
@@ -159,11 +186,137 @@ def duplicate_audit(df, stratified_parts, temporal_parts):
         "stratified_cross_split_overlap": overlap_counts(
             list(stratified_parts.values())
         ),
+        "stratified_test_frauds_with_train_validation_twin": int(
+            test_fraud_twin_mask.sum()
+        ),
+        "all_frauds_with_twin_in_another_stratified_split": all_fraud_twin_count,
         "temporal_cross_split_overlap": overlap_counts(temporal_parts),
         "policy": (
             "Retain duplicates: repeated transactions may be legitimate events. "
             "Report overlap rather than silently dropping rows."
         ),
+    }
+
+
+def _fit_stratified_run(df, model_factory, deduplicate):
+    """Fit and evaluate one stratified policy without writing artifacts."""
+    from src.data import DataLoader
+    from src.models.trainer import ModelTrainer
+
+    loader = DataLoader()
+    train, validation, test = loader.split(df, deduplicate=deduplicate)
+    cv = cross_validate_models(train, model_factory, n_splits=5, seed=42)
+    fe = FeatureEngineer().fit(train)
+    train_features = fe.transform(train)
+    validation_features = fe.transform(validation)
+    test_features = fe.transform(test)
+    pp = DataPreprocessor().fit(train_features)
+    train_features = pp.transform(train_features)
+    validation_features = pp.transform(validation_features)
+    test_features = pp.transform(test_features)
+    X_train = train_features.drop(columns=["Class"])
+    y_train = train_features["Class"]
+    X_validation = validation_features.drop(columns=["Class"])
+    y_validation = validation_features["Class"]
+    X_test = test_features.drop(columns=["Class"])
+    y_test = test_features["Class"]
+    trainer = ModelTrainer(experiment_name="fraud-detection-sensitivity")
+    trainer.train(X_train, y_train, X_validation, y_validation, cv_results=cv)
+    scores = trainer.best_model.predict_proba(X_test)[:, 1]
+    predictions = scores >= trainer.best_threshold
+    matrix = confusion_matrix(y_test, predictions, labels=[0, 1]).tolist()
+    return {
+        "deduplicated_before_split": deduplicate,
+        "split_sizes": {
+            "train": len(train),
+            "validation": len(validation),
+            "test": len(test),
+        },
+        "fraud_counts": {
+            "train": int(y_train.sum()),
+            "validation": int(y_validation.sum()),
+            "test": int(y_test.sum()),
+        },
+        "selected_model": trainer.best_model_name,
+        "threshold": trainer.best_threshold,
+        "auprc": float(average_precision_score(y_test, scores)),
+        "precision": float(
+            precision_score(y_test, predictions, zero_division=0)
+        ),
+        "recall": float(recall_score(y_test, predictions, zero_division=0)),
+        "confusion_counts": {
+            "true_negatives": matrix[0][0],
+            "false_positives": matrix[0][1],
+            "false_negatives": matrix[1][0],
+            "true_positives": matrix[1][1],
+        },
+        "bootstrap_confidence_intervals": bootstrap_confidence_intervals(
+            y_test, scores, trainer.best_threshold
+        ),
+        "parts": (train, validation, test),
+        "test_labels": y_test.to_numpy(),
+        "test_scores": scores,
+        "feature_engineer": fe,
+        "preprocessor": pp,
+        "test_features": X_test,
+    }
+
+
+def duplicate_sensitivity_evaluation(df, model_factory):
+    """Compare raw, pre-split deduplicated, and clean-test-only evaluations."""
+    raw = _fit_stratified_run(df, model_factory, deduplicate=False)
+    deduped = _fit_stratified_run(df, model_factory, deduplicate=True)
+    train, validation, test = raw["parts"]
+    reference_hashes = set(
+        pd.util.hash_pandas_object(
+            pd.concat([train, validation]), index=False
+        ).tolist()
+    )
+    test_hashes = pd.util.hash_pandas_object(test, index=False)
+    clean_mask = ~test_hashes.isin(reference_hashes).to_numpy()
+    clean_labels = raw["test_labels"][clean_mask]
+    clean_scores = raw["test_scores"][clean_mask]
+    clean_predictions = clean_scores >= raw["threshold"]
+    clean_matrix = confusion_matrix(
+        clean_labels, clean_predictions, labels=[0, 1]
+    ).tolist()
+    clean = {
+            "deduplicated_before_split": False,
+            "test_restricted_to_no_train_validation_twin": True,
+            "test_rows": int(clean_mask.sum()),
+            "fraud_count": int(clean_labels.sum()),
+            "auprc": float(average_precision_score(clean_labels, clean_scores)),
+            "precision": float(
+                precision_score(clean_labels, clean_predictions, zero_division=0)
+            ),
+            "recall": float(
+                recall_score(clean_labels, clean_predictions, zero_division=0)
+            ),
+            "confusion_counts": {
+                "true_negatives": clean_matrix[0][0],
+                "false_positives": clean_matrix[0][1],
+                "false_negatives": clean_matrix[1][0],
+                "true_positives": clean_matrix[1][1],
+            },
+            "bootstrap_confidence_intervals": bootstrap_confidence_intervals(
+                clean_labels, clean_scores, raw["threshold"]
+            ),
+            "threshold": raw["threshold"],
+        }
+    return {
+            "current_stratified": {
+                key: value for key, value in raw.items() if key not in {
+                    "parts", "test_labels", "test_scores", "feature_engineer",
+                    "preprocessor", "test_features",
+                }
+            },
+            "deduplicated_before_split": {
+                key: value for key, value in deduped.items() if key not in {
+                    "parts", "test_labels", "test_scores", "feature_engineer",
+                    "preprocessor", "test_features",
+                }
+            },
+            "current_split_clean_test": clean,
     }
 
 

@@ -29,6 +29,7 @@ from src.models.shap_explainer import explain as shap_explain
 from src.models.evaluation import (
     cross_validate_models,
     duplicate_audit,
+    duplicate_sensitivity_evaluation,
     git_revision,
     temporal_evaluation,
 )
@@ -46,11 +47,17 @@ def main(args):
     # ── 2. Split ───────────────────────────────────────────
     train_df, val_df, test_df = loader.split(df)
     raw_test_df = test_df.copy()
+    raw_train_df, raw_val_df, raw_test_df_with_duplicates = loader.split(
+        df, deduplicate=False
+    )
 
     # ── 3. Cross-validation on training data only ──────────
     trainer = ModelTrainer(experiment_name=args.experiment)
     cv_results = cross_validate_models(
         train_df, trainer._build_model_specs, n_splits=5, seed=42
+    )
+    duplicate_sensitivity = duplicate_sensitivity_evaluation(
+        df, trainer._build_model_specs
     )
     temporal_results = temporal_evaluation(df, trainer._build_model_specs)
     ordered = df.sort_values("Time", kind="mergesort").reset_index(drop=True)
@@ -62,7 +69,11 @@ def main(args):
     ]
     duplicate_results = duplicate_audit(
         df,
-        {"train": train_df, "validation": val_df, "test": test_df},
+        {
+            "train": raw_train_df,
+            "validation": raw_val_df,
+            "test": raw_test_df_with_duplicates,
+        },
         temporal_parts,
     )
 
@@ -181,6 +192,7 @@ def main(args):
         "cross_validation": cv_results,
         "temporal_evaluation": temporal_results,
         "duplicate_audit": duplicate_results,
+        "duplicate_sensitivity": duplicate_sensitivity,
         "provenance": {
             "seed": 42,
             "split_strategy": "stratified 70/10/20 with random_state=42",

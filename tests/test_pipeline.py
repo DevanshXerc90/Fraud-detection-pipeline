@@ -66,6 +66,21 @@ class TestDataLoader:
         assert "Class" not in X.columns
         assert len(y) == len(sample_data)
 
+    def test_deduplicated_split_has_no_cross_partition_hashes(self, sample_data):
+        duplicated = pd.concat(
+            [sample_data, sample_data.iloc[[0, 1]]], ignore_index=True
+        )
+        train, validation, test = DataLoader().split(
+            duplicated, deduplicate=True
+        )
+        hashes = [
+            set(pd.util.hash_pandas_object(part, index=False).tolist())
+            for part in (train, validation, test)
+        ]
+        assert not (hashes[0] & hashes[1])
+        assert not (hashes[0] & hashes[2])
+        assert not (hashes[1] & hashes[2])
+
 
 # ── Preprocessor tests ────────────────────────────────────────
 

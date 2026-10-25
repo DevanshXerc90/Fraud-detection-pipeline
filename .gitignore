@@ -34,3 +34,7 @@ Thumbs.db
 
 # Environment
 .env
+
+# Local personal notes
+INTERVIEW_PREP.md
+PROJECT_DOCUMENTATION.md
