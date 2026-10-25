@@ -5,6 +5,8 @@ that was used during training, and returns risk scores for incoming
 transactions.
 """
 import json
+import math
+import pickle
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List
@@ -53,7 +55,9 @@ class TransactionFeatures(BaseModel):
 
 
 class BatchTransactionRequest(BaseModel):
-    transactions: List[TransactionFeatures]
+    transactions: List[TransactionFeatures] = Field(
+        ..., min_length=1, max_length=1000
+    )
 
 
 class PredictionResponse(BaseModel):
@@ -72,30 +76,62 @@ class BatchPredictionResponse(BaseModel):
 # ── App state ──────────────────────────────────────────────────
 
 MODEL_DIR = Path("models")
-_state: dict = {"model": None, "preprocessor": None, "threshold": 0.5}
+_state: dict = {
+    "model": None,
+    "preprocessor": None,
+    "feature_engineer": None,
+    "threshold": 0.5,
+    "feature_names": None,
+    "load_error": None,
+}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load model and preprocessor on startup."""
+    _state.update({
+        "model": None,
+        "preprocessor": None,
+        "feature_engineer": None,
+        "threshold": 0.5,
+        "feature_names": None,
+        "load_error": None,
+    })
     model_path = MODEL_DIR / "model.pkl"
     preprocessor_path = MODEL_DIR / "preprocessor.pkl"
+    feature_engineer_path = MODEL_DIR / "feature_engineer.pkl"
     meta_path = MODEL_DIR / "metadata.json"
 
-    if model_path.exists():
-        _state["model"] = joblib.load(model_path)
-        print(f"Model loaded from {model_path}")
+    required = {
+        "model": model_path,
+        "preprocessor": preprocessor_path,
+        "feature_engineer": feature_engineer_path,
+        "metadata": meta_path,
+    }
+    missing = [name for name, path in required.items() if not path.exists()]
+    if missing:
+        _state["load_error"] = (
+            "Missing model artifacts: " + ", ".join(missing)
+        )
+        print(f"Warning: {_state['load_error']}")
     else:
-        print("Warning: No trained model found. Predictions will return 503.")
-
-    if preprocessor_path.exists():
-        _state["preprocessor"] = joblib.load(preprocessor_path)
-        print(f"Preprocessor loaded from {preprocessor_path}")
-
-    if meta_path.exists():
-        with open(meta_path) as f:
-            meta = json.load(f)
-        _state["threshold"] = meta.get("best_threshold", 0.5)
+        try:
+            _state["model"] = joblib.load(model_path)
+            _state["preprocessor"] = joblib.load(preprocessor_path)
+            _state["feature_engineer"] = joblib.load(feature_engineer_path)
+            with open(meta_path, encoding="utf-8") as f:
+                meta = json.load(f)
+            threshold = float(meta["best_threshold"])
+            feature_names = meta.get("feature_names")
+            if not 0 <= threshold <= 1 or not feature_names:
+                raise ValueError("metadata has an invalid threshold or feature schema")
+            _state["threshold"] = threshold
+            _state["feature_names"] = feature_names
+            print(f"Model artifacts loaded from {MODEL_DIR}")
+        except (OSError, KeyError, TypeError, ValueError, AttributeError,
+                ImportError, EOFError, pickle.UnpicklingError) as exc:
+            _state["load_error"] = f"Unable to load model artifacts: {exc}"
+            print(f"Warning: {_state['load_error']}")
 
     print(f"Decision threshold: {_state['threshold']:.4f}")
     yield
@@ -124,24 +160,42 @@ def _risk_level(prob: float) -> str:
 
 
 def _preprocess(df: pd.DataFrame) -> pd.DataFrame:
-    """Apply the same scaling that was used during training."""
-    preprocessor = _state.get("preprocessor")
-    if preprocessor is not None:
-        df = preprocessor.transform(df)
-    return df
+    """Apply the fitted preprocessing and feature engineering sequence."""
+    preprocessor = _state["preprocessor"]
+    feature_engineer = _state["feature_engineer"]
+    transformed = preprocessor.transform(feature_engineer.transform(df))
+    expected = _state["feature_names"]
+    if list(transformed.columns) != expected:
+        raise ValueError("Transformed feature schema does not match the trained model")
+    return transformed
+
+
+def _validate_transaction(tx: TransactionFeatures) -> None:
+    values = tx.model_dump()
+    if not all(math.isfinite(value) for value in values.values()):
+        raise HTTPException(status_code=422, detail="All values must be finite")
+    if tx.Time < 0:
+        raise HTTPException(status_code=422, detail="Time must be non-negative")
+    if tx.Amount < 0:
+        raise HTTPException(status_code=422, detail="Amount must be non-negative")
 
 
 def _predict(tx: TransactionFeatures) -> PredictionResponse:
     """Run a single transaction through preprocessing and the model."""
     model = _state.get("model")
-    if model is None:
+    if model is None or _state.get("preprocessor") is None or _state.get("feature_engineer") is None:
         raise HTTPException(
             status_code=503,
-            detail="Model not loaded. Train the model first by running train.py.",
+            detail=_state.get("load_error")
+            or "Model artifacts are not ready. Train the model first by running train.py.",
         )
 
+    _validate_transaction(tx)
     raw_df = pd.DataFrame([tx.model_dump()])
-    processed_df = _preprocess(raw_df)
+    try:
+        processed_df = _preprocess(raw_df)
+    except (KeyError, ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=503, detail=f"Model artifacts are incompatible: {exc}") from exc
 
     prob = float(model.predict_proba(processed_df)[0, 1])
     threshold = _state["threshold"]
@@ -165,10 +219,20 @@ def root():
 
 @app.get("/health")
 def health_check():
+    ready = (
+        _state.get("model") is not None
+        and _state.get("preprocessor") is not None
+        and _state.get("feature_engineer") is not None
+        and _state.get("feature_names") is not None
+    )
     return {
-        "status": "healthy",
+        "status": "ready" if ready else "not_ready",
+        "application_available": True,
+        "model_ready": ready,
         "model_loaded": _state.get("model") is not None,
         "preprocessor_loaded": _state.get("preprocessor") is not None,
+        "feature_engineer_loaded": _state.get("feature_engineer") is not None,
+        "error": _state.get("load_error"),
         "threshold": _state.get("threshold"),
     }
 

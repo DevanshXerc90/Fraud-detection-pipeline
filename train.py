@@ -35,19 +35,20 @@ def main(args):
     # ── 2. Split ───────────────────────────────────────────
     train_df, val_df, test_df = loader.split(df)
 
-    # ── 3. Preprocess (scale Amount & Time) ────────────────
+    # ── 3. Feature engineering (fit on raw training data only) ──
+    fe = None
+    if not args.skip_features:
+        fe = FeatureEngineer()
+        train_df = fe.fit_transform(train_df)
+        val_df = fe.transform(val_df)
+        test_df = fe.transform(test_df)
+        print(f"Features after engineering: {train_df.shape[1] - 1}")
+
+    # ── 4. Preprocess (fit on training data only) ──────────
     preprocessor = DataPreprocessor()
     train_df = preprocessor.fit_transform(train_df)
     val_df = preprocessor.transform(val_df)
     test_df = preprocessor.transform(test_df)
-
-    # ── 4. Feature engineering ─────────────────────────────
-    if not args.skip_features:
-        fe = FeatureEngineer()
-        train_df = fe.transform(train_df)
-        val_df = fe.transform(val_df)
-        test_df = fe.transform(test_df)
-        print(f"Features after engineering: {train_df.shape[1] - 1}")
 
     # ── 5. Separate X and y ────────────────────────────────
     X_train, y_train = loader.get_feature_targets(train_df)
@@ -63,13 +64,15 @@ def main(args):
     test_metrics = trainer.evaluate_test(X_test, y_test)
 
     # ── 8. Save model and preprocessor ────────────────────
-    trainer.save(args.model_dir)
+    trainer.save(args.model_dir, feature_names=X_train.columns)
 
     # Save the fitted preprocessor so the API can apply
     # the exact same scaling at inference time.
     model_dir = Path(args.model_dir)
     model_dir.mkdir(parents=True, exist_ok=True)
     joblib.dump(preprocessor, model_dir / "preprocessor.pkl")
+    if fe is not None:
+        joblib.dump(fe, model_dir / "feature_engineer.pkl")
     print(f"Preprocessor saved to {model_dir}/")
 
     # ── 9. Save results ────────────────────────────────────
@@ -77,6 +80,7 @@ def main(args):
         "validation_results": results,
         "test_results": test_metrics,
         "best_model": trainer.best_model_name,
+        "failed_models": trainer.failures,
     }
     results_path = Path(args.model_dir) / "results.json"
     # default=str handles non-serialisable types like numpy floats

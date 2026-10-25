@@ -18,8 +18,8 @@ class FeatureEngineer:
     - V14_x_V17: interaction of two PCA components most correlated with fraud
     - VComponentsMagnitude: overall magnitude of the anonymous PCA vector
     - IsMicroTx: flag for very small charges often used to test stolen cards
-    - AmountPercentile: rank-based score relative to all other transactions
-    - TimeSinceFirstTxNorm: normalized transaction timing
+    - AmountPercentile: percentile relative to the training amount distribution
+    - TimeSinceFirstTxNorm: normalized transaction timing using training bounds
     """
 
     V_COLUMNS = [f"V{i}" for i in range(1, 29)]
@@ -27,19 +27,43 @@ class FeatureEngineer:
     NIGHT_END = 6
     MICRO_TX_THRESHOLD = 1.0
 
+    def __init__(self):
+        self._amount_reference = None
+        self._time_min = None
+        self._time_max = None
+
+    def fit(self, df: pd.DataFrame) -> "FeatureEngineer":
+        """Learn the training-only statistics needed for live transformations."""
+        self._validate_input(df)
+        amount = self._numeric_series(df, "Amount")
+        time = self._numeric_series(df, "Time")
+        self._amount_reference = np.sort(amount.to_numpy())
+        self._time_min = float(time.min())
+        self._time_max = float(time.max())
+        return self
+
+    def fit_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Fit on training data and transform it."""
+        return self.fit(df).transform(df)
+
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply all feature engineering steps and return the enriched frame."""
+        if self._amount_reference is None:
+            raise RuntimeError("Call fit() before transform()")
+        self._validate_input(df)
         # work on a copy so the original dataframe is never modified
         result = df.copy()
+        amount = self._numeric_series(result, "Amount")
+        time = self._numeric_series(result, "Time")
 
         # Log-transform the amount to tame extreme skew.
         # Adding 1 avoids log(0) for any zero-amount edge cases.
-        result["LogAmount"] = np.log1p(result["Amount"].clip(lower=0))
+        result["LogAmount"] = np.log1p(amount.clip(lower=0))
 
         # Pull the hour-of-day from the raw Time column (seconds since first tx).
         # The dataset spans ~48 hours so we wrap around modulo 86400.
         result["HourOfDay"] = (
-            (result["Time"] % 86400) / 3600
+            (time % 86400) / 3600
         ).astype(int).clip(0, 23)
 
         # Circular encoding so the model understands that hour 23 and hour 0
@@ -66,20 +90,34 @@ class FeatureEngineer:
         # Flag for micro-transactions.  Fraudsters often run a tiny charge
         # first to verify the card is alive before larger purchases.
         result["IsMicroTx"] = (
-            result["Amount"] <= self.MICRO_TX_THRESHOLD
+            amount <= self.MICRO_TX_THRESHOLD
         ).astype(int)
 
-        # Percentile rank of the amount.  This is robust to outliers and
-        # gives the model a stable, bounded signal.
+        # Compare against the training distribution, not the current batch.
         result["AmountPercentile"] = (
-            result["Amount"].rank(pct=True)
+            np.searchsorted(self._amount_reference, amount, side="right")
+            / len(self._amount_reference)
         )
 
-        # Normalized time within the dataset window (0 to 1).
-        max_time = result["Time"].max()
-        if max_time > 0:
-            result["TimeSinceFirstTxNorm"] = result["Time"] / max_time
+        # Normalize using training bounds so a single request is reproducible.
+        time_range = self._time_max - self._time_min
+        if time_range > 0:
+            result["TimeSinceFirstTxNorm"] = (time - self._time_min) / time_range
         else:
             result["TimeSinceFirstTxNorm"] = 0.0
 
         return result
+
+    @staticmethod
+    def _validate_input(df: pd.DataFrame) -> None:
+        required = {"Time", "Amount", "V14", "V17", *{f"V{i}" for i in range(1, 29)}}
+        missing = sorted(required.difference(df.columns))
+        if missing:
+            raise ValueError(f"Missing feature columns: {', '.join(missing)}")
+
+    @staticmethod
+    def _numeric_series(df: pd.DataFrame, column: str) -> pd.Series:
+        values = pd.to_numeric(df[column], errors="coerce")
+        if not np.isfinite(values.to_numpy()).all():
+            raise ValueError(f"{column} contains missing or non-finite values")
+        return values

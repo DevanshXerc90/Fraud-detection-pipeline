@@ -39,10 +39,10 @@ Raw CSV
 DataLoader          ── stratified train / val / test split (72 / 8 / 20)
   │
   ▼
-DataPreprocessor    ── RobustScaler on Amount and Time
+FeatureEngineer     ── fitted, batch-independent derived features
   │
   ▼
-FeatureEngineer     ── 9 derived features
+DataPreprocessor    ── RobustScaler on Amount and Time
   │
   ▼
 ModelTrainer        ── 4 models · threshold tuning · MLflow logging
@@ -67,8 +67,8 @@ FastAPI Inference API
 | `V14_x_V17` | Interaction of the two PCA components most correlated with fraud |
 | `VComponentsMagnitude` | Overall magnitude of the anonymous PCA vector — flags anomalies |
 | `IsMicroTx` | Flags charges under $1, a common card-testing pattern |
-| `AmountPercentile` | Rank-based amount score, robust to outliers |
-| `TimeSinceFirstTxNorm` | Normalized position within the 48-hour data window |
+| `AmountPercentile` | Percentile against the training amount distribution |
+| `TimeSinceFirstTxNorm` | Normalized position using training time bounds |
 
 ---
 
@@ -77,7 +77,7 @@ FastAPI Inference API
 ### Installation
 
 ```bash
-git clone https://github.com/fraud-detection-pipeline.git
+git clone https://github.com/DevanshXerc90/Fraud-detection-pipeline.git
 cd fraud-detection-pipeline
 pip install -r requirements.txt
 ```
@@ -97,26 +97,24 @@ The training script will:
 - Generate all engineered features
 - Train all **four models** and log metrics to **MLflow**
 - Select the best model by **AUPRC**
-- Save the model, preprocessor, and metadata to `models/`
+- Save the model, fitted feature engineer, preprocessor, and schema metadata to `models/`
 - Run **SHAP** on the winning model and save plots to `outputs/shap/`
 
 ---
 
 ## 📊 Model Benchmarks
 
-All models evaluated on the same stratified validation split (8% of data).
-The winner is selected by **AUPRC** — area under the precision-recall curve,
-the correct metric for heavily imbalanced datasets.
+All models are evaluated on the same stratified validation split (8% of data).
+The winner is selected by **AUPRC** (average precision), and its threshold is
+selected using validation data only. The held-out test metrics are written to
+`models/results.json` after each run; the bundled artifacts are not a fresh benchmark.
 
-| Model | Val AUPRC | Note |
-|---|---|---|
-| Logistic Regression | 0.6830 | |
-| Random Forest | 0.7851 | |
-| **XGBoost** | **0.8152** | **Best model / Deployed model** |
-| LightGBM | 0.0160 | |
-
-> Numbers are populated automatically in `models/results.json` after each run.
-> Replace the dashes above with your actual AUPRC values after training.
+| Model | Validation AUPRC |
+|---|---|
+| Logistic Regression | See `models/results.json` |
+| Random Forest | See `models/results.json` |
+| XGBoost | See `models/results.json` |
+| LightGBM | See `models/results.json` |
 
 ---
 
@@ -150,7 +148,7 @@ curl -X POST http://localhost:8000/predict \
   "fraud_probability": 0.873,
   "is_fraud": true,
   "risk_level": "HIGH",
-  "threshold": 0.381
+  "threshold": 0.5
 }
 ```
 
@@ -189,7 +187,7 @@ docker-compose up --build
 
 ## 🔍 Model Interpretability
 
-After the best model is selected, SHAP values are computed on the **full test set**
+After the best model is selected, SHAP values are computed on the test set
 using `shap.TreeExplainer` (for tree-based models) or `shap.LinearExplainer`
 (for Logistic Regression).
 
@@ -200,18 +198,8 @@ Two plots are saved to `outputs/shap/`:
 | `shap_summary.png` | Beeswarm plot — global feature importance across all test samples |
 | `shap_waterfall.png` | Waterfall plot — breakdown for the single highest-risk transaction |
 
-**Top 5 features by mean \|SHAP value\|** (representative values — run the pipeline for your exact numbers):
-
-| Rank | Feature | Mean \|SHAP\| |
-|---|---|---|
-| 1 | V14 | 2.080606 |
-| 2 | V4 | 1.817697 |
-| 3 | VComponentsMagnitude | 1.160666 |
-| 4 | V12 | 0.837155 |
-| 5 | V10 | 0.708778 |
-
-> Run `python train.py` and the actual values will be printed to stdout.
-> Paste them here to keep the README up to date.
+The printed rankings are descriptive associations, not proof of causation or
+regulatory compliance.
 
 ---
 
@@ -228,7 +216,7 @@ fraud-detection-pipeline/
 ├── outputs/
 │   └── shap/           # shap_summary.png, shap_waterfall.png
 ├── train.py            # Main training entry point
-└── models/             # Saved model artifacts (gitignored)
+└── models/             # Saved model, preprocessing, and metadata artifacts
 ```
 
 ---
