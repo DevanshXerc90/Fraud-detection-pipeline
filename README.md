@@ -135,9 +135,9 @@ confusion counts, and 1,000-sample bootstrap intervals are in
 
 ## Threshold trade-offs
 
-The selected threshold, `0.5`, and the validation threshold targeting
-approximately 90% recall are reported below. The target was chosen from
-validation predictions; the test results are descriptive.
+The selected threshold (`0.993095`), the default comparison threshold (`0.5`),
+and the validation-selected threshold targeting approximately 90% recall are
+compared below. Test results are descriptive.
 
 | Threshold | TN | FP | FN | TP | Test precision | Test recall |
 |---:|---:|---:|---:|---:|---:|---:|
