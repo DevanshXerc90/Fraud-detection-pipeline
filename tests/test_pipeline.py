@@ -13,6 +13,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.data import DataLoader, DataPreprocessor
 from src.features import FeatureEngineer
 from src.models.trainer import find_optimal_threshold
+from fastapi.testclient import TestClient
+from src.api.main import TransactionFeatures, _predict, _state, app
+from sklearn.linear_model import LogisticRegression
 
 
 # ── Fixtures ──────────────────────────────────────────────────
@@ -85,7 +88,7 @@ class TestDataPreprocessor:
 class TestFeatureEngineer:
     def test_creates_new_columns(self, sample_data):
         fe = FeatureEngineer()
-        result = fe.transform(sample_data)
+        result = fe.fit_transform(sample_data)
         assert "LogAmount" in result.columns
         assert "HourOfDay" in result.columns
         assert "IsNightTime" in result.columns
@@ -94,14 +97,26 @@ class TestFeatureEngineer:
 
     def test_hour_of_day_range(self, sample_data):
         fe = FeatureEngineer()
-        result = fe.transform(sample_data)
+        result = fe.fit_transform(sample_data)
         assert result["HourOfDay"].min() >= 0
         assert result["HourOfDay"].max() <= 23
 
     def test_is_micro_tx_flag(self, sample_data):
         fe = FeatureEngineer()
-        result = fe.transform(sample_data)
+        result = fe.fit_transform(sample_data)
         assert result["IsMicroTx"].isin([0, 1]).all()
+
+    def test_single_row_is_independent_of_batch(self, sample_data):
+        fe = FeatureEngineer().fit(sample_data)
+        first = fe.transform(sample_data.iloc[[0]])
+        larger_batch = fe.transform(sample_data.iloc[[0, 1]])
+        pd.testing.assert_series_equal(
+            first.iloc[0], larger_batch.iloc[0], check_names=False
+        )
+
+    def test_requires_fit(self, sample_data):
+        with pytest.raises(RuntimeError):
+            FeatureEngineer().transform(sample_data)
 
 
 # ── Threshold optimization test ───────────────────────────────
@@ -113,3 +128,72 @@ class TestThresholdOptimization:
         threshold = find_optimal_threshold(y_true, y_proba)
         # should land in the middle range given the clear separation in y_proba
         assert 0.3 <= threshold <= 0.7
+
+
+class TestInferenceConsistency:
+    def test_api_uses_training_feature_schema(self, sample_data):
+        train = sample_data.drop(columns=["Class"])
+        labels = sample_data["Class"]
+        feature_engineer = FeatureEngineer().fit(train)
+        preprocessor = DataPreprocessor().fit(train)
+        training_features = preprocessor.transform(
+            feature_engineer.transform(train)
+        )
+        model = LogisticRegression(max_iter=200).fit(training_features, labels)
+
+        previous = _state.copy()
+        _state.update({
+            "model": model,
+            "preprocessor": preprocessor,
+            "feature_engineer": feature_engineer,
+            "feature_names": list(training_features.columns),
+            "threshold": 0.5,
+            "load_error": None,
+        })
+        try:
+            row = train.iloc[0]
+            tx = TransactionFeatures(**row.to_dict())
+            expected = float(model.predict_proba(training_features.iloc[[0]])[0, 1])
+            actual = _predict(tx).fraud_probability
+            assert actual == round(expected, 6)
+        finally:
+            _state.clear()
+            _state.update(previous)
+
+    def test_batch_and_invalid_requests(self, sample_data):
+        train = sample_data.drop(columns=["Class"])
+        labels = sample_data["Class"]
+        feature_engineer = FeatureEngineer().fit(train)
+        preprocessor = DataPreprocessor().fit(train)
+        training_features = preprocessor.transform(
+            feature_engineer.transform(train)
+        )
+        model = LogisticRegression(max_iter=200).fit(training_features, labels)
+        previous = _state.copy()
+        _state.update({
+            "model": model,
+            "preprocessor": preprocessor,
+            "feature_engineer": feature_engineer,
+            "feature_names": list(training_features.columns),
+            "threshold": 0.5,
+            "load_error": None,
+        })
+        try:
+            payload = train.iloc[0].to_dict()
+            client = TestClient(app)
+            batch = client.post(
+                "/predict/batch",
+                json={"transactions": [payload, payload]},
+            )
+            assert batch.status_code == 200
+            assert batch.json()["total_transactions"] == 2
+            assert len(batch.json()["predictions"]) == 2
+            assert client.post(
+                "/predict", json={**payload, "Amount": -1}
+            ).status_code == 422
+            assert client.post(
+                "/predict/batch", json={"transactions": []}
+            ).status_code == 422
+        finally:
+            _state.clear()
+            _state.update(previous)
