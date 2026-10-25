@@ -36,7 +36,7 @@ Because the dataset is heavily imbalanced, the pipeline uses:
 Raw CSV
   │
   ▼
-DataLoader          ── stratified train / val / test split (72 / 8 / 20)
+DataLoader          ── stratified train / val / test split (70 / 10 / 20)
   │
   ▼
 FeatureEngineer     ── fitted, batch-independent derived features
@@ -92,7 +92,7 @@ python train.py
 ```
 
 The training script will:
-- Split the data **(72% train / 8% val / 20% test)** with stratification
+- Split the data **(70% train / 10% val / 20% test)** with stratification
 - Scale `Amount` and `Time` using **RobustScaler**
 - Generate all engineered features
 - Train all **four models** and log metrics to **MLflow**
@@ -104,7 +104,7 @@ The training script will:
 
 ## 📊 Model Benchmarks
 
-All models are evaluated on the same stratified validation split (8% of data).
+All models are evaluated on the same stratified validation split (10% of data).
 The winner is selected by **AUPRC** (average precision), and its threshold is
 selected using validation data only. The held-out test metrics are written to
 `models/results.json` after each run; the bundled artifacts are not a fresh benchmark.
