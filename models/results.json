@@ -1,18 +1,31 @@
 {
   "validation_results": {
-    "LogisticRegression": 0.6829712826767026,
-    "RandomForest": 0.7850633063318614,
-    "XGBoost": 0.8151811677553995,
-    "LightGBM": 0.016006874731904805
+    "LogisticRegression": 0.679872506270304,
+    "RandomForest": 0.7894448474182829,
+    "XGBoost": 0.8040156398634627,
+    "LightGBM": 0.04300333291034065
   },
   "test_results": {
     "model": "XGBoost",
-    "threshold": 0.9698496460914612,
-    "auprc": 0.8787608870195943,
-    "auc_roc": 0.978014855351257,
-    "precision": 0.9512195121951219,
-    "recall": 0.7959183673469388,
-    "f1": 0.8666666666666667
+    "threshold": 0.937918484210968,
+    "auprc": 0.8811954716550312,
+    "auc_roc": 0.9788390560219586,
+    "precision": 0.9404761904761905,
+    "recall": 0.8061224489795918,
+    "f1": 0.8681318681318682,
+    "confusion_matrix": [
+      [
+        56859,
+        5
+      ],
+      [
+        19,
+        79
+      ]
+    ],
+    "sample_count": 56962,
+    "fraud_prevalence": 0.0017204452090867595
   },
-  "best_model": "XGBoost"
+  "best_model": "XGBoost",
+  "failed_models": {}
 }
