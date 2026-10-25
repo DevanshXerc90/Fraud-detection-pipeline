@@ -4,7 +4,7 @@ through model evaluation and saving.
 
 Usage:
     python train.py                    # full pipeline
-    python train.py --skip-features    # skip feature engineering
+    python train.py                    # feature engineering is required
 """
 import argparse
 import json
@@ -21,18 +21,13 @@ from src.data import DataLoader, DataPreprocessor
 from src.features import FeatureEngineer
 from src.models import ModelTrainer
 from src.models.shap_explainer import explain as shap_explain
+from src.models.evaluation import cross_validate_models, temporal_evaluation
 
 
 def main(args):
-    if args.skip_features:
-        raise ValueError(
-            "Feature engineering cannot be skipped because the API requires "
-            "the fitted feature_engineer.pkl artifact."
-        )
-
     # ── 1. Load data ───────────────────────────────────────
     print("\n" + "=" * 60)
-    print("  FRAUD DETECTION PIPELINE  (4 models + SHAP)")
+    print("  FRAUD DETECTION PIPELINE  (3 models + SHAP)")
     print("=" * 60)
 
     loader = DataLoader(args.data_path)
@@ -41,50 +36,63 @@ def main(args):
     # ── 2. Split ───────────────────────────────────────────
     train_df, val_df, test_df = loader.split(df)
 
-    # ── 3. Feature engineering (fit on raw training data only) ──
+    # ── 3. Cross-validation on training data only ──────────
+    trainer = ModelTrainer(experiment_name=args.experiment)
+    cv_results = cross_validate_models(
+        train_df, trainer._build_model_specs, n_splits=5, seed=42
+    )
+    temporal_results = temporal_evaluation(
+        df, trainer._build_model_specs
+    )
+
+    # ── 4. Feature engineering (fit on raw training data only) ──
     fe = FeatureEngineer()
     train_df = fe.fit_transform(train_df)
     val_df = fe.transform(val_df)
     test_df = fe.transform(test_df)
     print(f"Features after engineering: {train_df.shape[1] - 1}")
 
-    # ── 4. Preprocess (fit on training data only) ──────────
+    # ── 5. Preprocess (fit on training data only) ──────────
     preprocessor = DataPreprocessor()
     train_df = preprocessor.fit_transform(train_df)
     val_df = preprocessor.transform(val_df)
     test_df = preprocessor.transform(test_df)
 
-    # ── 5. Separate X and y ────────────────────────────────
+    # ── 6. Separate X and y ────────────────────────────────
     X_train, y_train = loader.get_feature_targets(train_df)
     X_val, y_val = loader.get_feature_targets(val_df)
     X_test, y_test = loader.get_feature_targets(test_df)
 
-    # ── 6. Train models ────────────────────────────────────
-    trainer = ModelTrainer(experiment_name=args.experiment)
-
+    # ── 7. Train models ────────────────────────────────────
     results = trainer.train(X_train, y_train, X_val, y_val)
 
-    # ── 7. Evaluate on test set ────────────────────────────
+    # ── 8. Evaluate on test set ────────────────────────────
     test_metrics = trainer.evaluate_test(X_test, y_test)
 
-    # ── 8. Save model and preprocessor ────────────────────
-    trainer.save(args.model_dir, feature_names=X_train.columns)
+    # ── 9. Save model and preprocessor ────────────────────
+    trainer.save(
+        args.model_dir,
+        feature_names=X_train.columns,
+        cv_results=cv_results,
+        temporal_results=temporal_results,
+    )
 
     # Save the fitted preprocessor so the API can apply
     # the exact same scaling at inference time.
     model_dir = Path(args.model_dir)
     model_dir.mkdir(parents=True, exist_ok=True)
     joblib.dump(preprocessor, model_dir / "preprocessor.pkl")
-    if fe is not None:
-        joblib.dump(fe, model_dir / "feature_engineer.pkl")
+    joblib.dump(fe, model_dir / "feature_engineer.pkl")
     print(f"Preprocessor saved to {model_dir}/")
 
-    # ── 9. Save results ────────────────────────────────────
+    # ── 10. Save results ───────────────────────────────────
     output = {
         "validation_results": results,
         "test_results": test_metrics,
         "best_model": trainer.best_model_name,
         "failed_models": trainer.failures,
+        "cross_validation": cv_results,
+        "temporal_evaluation": temporal_results,
     }
     results_path = Path(args.model_dir) / "results.json"
     # default=str handles non-serialisable types like numpy floats
@@ -123,11 +131,6 @@ if __name__ == "__main__":
         "--experiment",
         default="fraud-detection",
         help="MLflow experiment name",
-    )
-    parser.add_argument(
-        "--skip-features",
-        action="store_true",
-        help="Skip feature engineering",
     )
     args = parser.parse_args()
     main(args)

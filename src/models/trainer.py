@@ -1,11 +1,10 @@
 """
 Model training, threshold optimisation, and MLflow logging.
 
-Trains four models:
+Trains three models:
     - Logistic Regression  (sklearn, class_weight="balanced")
     - Random Forest        (sklearn, class_weight="balanced")
     - XGBoost              (scale_pos_weight = neg / pos)
-    - LightGBM             (scale_pos_weight = neg / pos)
 
 All four are evaluated on validation AUPRC; the highest-scoring model
 is designated the "best" and is the one saved and used for inference.
@@ -33,7 +32,12 @@ from sklearn.metrics import (
     f1_score,
 )
 from xgboost import XGBClassifier
-import lightgbm as lgb
+from src.models.evaluation import (
+    bootstrap_confidence_intervals,
+    git_revision,
+    threshold_metrics,
+    utc_date,
+)
 
 
 # ── Threshold helper ──────────────────────────────────────────────────────────
@@ -69,7 +73,7 @@ def find_optimal_threshold(
 
 class ModelTrainer:
     """
-    End-to-end trainer that fits four models, logs each to MLflow,
+    End-to-end trainer that fits three models, logs each to MLflow,
     selects the best by validation AUPRC, tunes its decision threshold,
     and exposes the winning model for downstream evaluation and saving.
     """
@@ -94,7 +98,7 @@ class ModelTrainer:
         y_val: pd.Series,
     ) -> Dict[str, float]:
         """
-        Train all four models; log each to a separate MLflow run.
+        Train all three models; log each to a separate MLflow run.
 
         Returns
         -------
@@ -102,7 +106,7 @@ class ModelTrainer:
             Mapping of model name → validation AUPRC, used by train.py
             to record pipeline results.
         """
-        # Class imbalance ratio used by XGBoost and LightGBM
+        # Class imbalance ratio used by XGBoost
         n_neg = int((y_train == 0).sum())
         n_pos = int((y_train == 1).sum())
         scale_pos_weight = n_neg / max(n_pos, 1)
@@ -170,18 +174,6 @@ class ModelTrainer:
                 eval_metric="aucpr",
                 random_state=42,
                 verbosity=0,
-            ),
-            "LightGBM": lgb.LGBMClassifier(
-                n_estimators=300,
-                scale_pos_weight=scale_pos_weight,
-                learning_rate=0.05,
-                max_depth=6,
-                num_leaves=63,
-                subsample=0.8,
-                colsample_bytree=0.8,
-                metric="average_precision",
-                random_state=42,
-                verbosity=-1,
             ),
         }
 
@@ -260,6 +252,12 @@ class ModelTrainer:
         f1      = f1_score(y_test, y_pred, zero_division=0)
         from sklearn.metrics import confusion_matrix
         matrix = confusion_matrix(y_test, y_pred, labels=[0, 1]).tolist()
+        thresholds = sorted({
+            0.5,
+            round(max(0.0, self.best_threshold - 0.05), 6),
+            round(self.best_threshold, 6),
+            round(min(1.0, self.best_threshold + 0.05), 6),
+        })
 
         metrics = {
             "model":     self.best_model_name,
@@ -272,6 +270,12 @@ class ModelTrainer:
             "confusion_matrix": matrix,
             "sample_count": int(len(y_test)),
             "fraud_prevalence": float(np.mean(y_test)),
+            "threshold_metrics": threshold_metrics(
+                y_test, proba, thresholds
+            ),
+            "bootstrap_confidence_intervals": bootstrap_confidence_intervals(
+                y_test, proba, self.best_threshold
+            ),
         }
 
         print("\n-- Test Set Results -------------------------------------")
@@ -288,7 +292,13 @@ class ModelTrainer:
 
     # ── Save ─────────────────────────────────────────────────────────────────
 
-    def save(self, model_dir: str = "models", feature_names=None) -> None:
+    def save(
+        self,
+        model_dir: str = "models",
+        feature_names=None,
+        cv_results=None,
+        temporal_results=None,
+    ) -> None:
         """
         Persist the winning model and its metadata to *model_dir*.
 
@@ -308,6 +318,11 @@ class ModelTrainer:
             "val_auprc_all":   self._val_auprc,
             "feature_names":   list(feature_names) if feature_names is not None else None,
             "failed_models":   self.failures,
+            "seed":             42,
+            "evaluation_date": utc_date(),
+            "git_commit":       git_revision(),
+            "cross_validation": cv_results,
+            "temporal_evaluation": temporal_results,
         }
         with open(out / "metadata.json", "w") as f:
             json.dump(metadata, f, indent=2)

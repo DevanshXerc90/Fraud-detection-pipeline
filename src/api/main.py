@@ -61,7 +61,9 @@ class BatchTransactionRequest(BaseModel):
 
 
 class PredictionResponse(BaseModel):
-    fraud_probability: float
+    fraud_score: float = Field(
+        ..., description="Uncalibrated positive-class model score"
+    )
     is_fraud: bool
     risk_level: str
     threshold: float
@@ -202,7 +204,7 @@ def _predict(tx: TransactionFeatures) -> PredictionResponse:
     is_fraud = prob >= threshold
 
     return PredictionResponse(
-        fraud_probability=round(prob, 6),
+        fraud_score=round(prob, 6),
         is_fraud=is_fraud,
         risk_level=_risk_level(prob),
         threshold=threshold,

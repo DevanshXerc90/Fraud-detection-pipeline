@@ -5,7 +5,7 @@ Called after the best model is identified.  Produces two plots and prints
 the top-5 features by mean absolute SHAP value to stdout.
 
 Supported model families:
-    - Tree-based (Random Forest, XGBoost, LightGBM) → shap.TreeExplainer
+    - Tree-based (Random Forest, XGBoost) → shap.TreeExplainer
     - Linear (Logistic Regression)                  → shap.LinearExplainer
 """
 from __future__ import annotations
@@ -22,7 +22,7 @@ import shap
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-_TREE_MODEL_NAMES = {"RandomForest", "XGBoost", "LightGBM"}
+_TREE_MODEL_NAMES = {"RandomForest", "XGBoost"}
 _LINEAR_MODEL_NAMES = {"LogisticRegression"}
 
 
@@ -40,9 +40,9 @@ def explain(
 
     Parameters
     ----------
-    model       : fitted estimator (sklearn, XGBoost, or LightGBM)
+    model       : fitted estimator (sklearn or XGBoost)
     model_name  : one of 'LogisticRegression', 'RandomForest',
-                  'XGBoost', 'LightGBM'
+                  'XGBoost'
     X_test      : feature matrix (test split)
     y_test      : true labels (test split)
     output_dir  : directory where PNG files are written
@@ -107,7 +107,7 @@ def _extract_positive_class(shap_values) -> np.ndarray:
     Return the SHAP value matrix for the fraud class.
 
     sklearn tree-based models (RandomForest) return a list [neg_sv, pos_sv];
-    XGBoost and LightGBM return a single 2-D array directly.
+    XGBoost returns a single 2-D array directly.
     """
     if isinstance(shap_values, list):
         # list of arrays — index 1 is the positive (fraud) class
@@ -143,7 +143,7 @@ def _save_waterfall_plot(
 ) -> None:
     """
     Generate and save a waterfall plot for the single highest-risk
-    transaction (the sample with the highest predicted fraud probability).
+    transaction (the sample with the highest model score).
     """
     # Find the highest predicted fraud probability in the test set
     proba = model.predict_proba(X_test)[:, 1]
@@ -153,7 +153,7 @@ def _save_waterfall_plot(
 
     print(
         f"  High-risk sample: index {high_risk_idx}, "
-        f"P(fraud)={high_risk_prob:.4f}, true label={true_label}"
+        f"score={high_risk_prob:.4f}, true label={true_label}"
     )
 
     # Build an Explanation object for the waterfall plot
@@ -175,7 +175,7 @@ def _save_waterfall_plot(
     shap.waterfall_plot(explanation, show=False, max_display=15)
     plt.title(
         f"SHAP Waterfall — Highest-Risk Transaction "
-        f"(P(fraud)={high_risk_prob:.4f})",
+        f"(score={high_risk_prob:.4f})",
         fontsize=12,
         pad=12,
     )
