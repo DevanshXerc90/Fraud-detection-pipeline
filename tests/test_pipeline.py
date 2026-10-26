@@ -18,7 +18,14 @@ from src.models.evaluation import (
     threshold_metrics,
 )
 from fastapi.testclient import TestClient
-from src.api.main import TransactionFeatures, _predict, _risk_level, _state, app
+from src.api.main import (
+    TransactionFeatures,
+    _parse_frontend_origins,
+    _predict,
+    _risk_level,
+    _state,
+    app,
+)
 from sklearn.linear_model import LogisticRegression
 
 
@@ -182,6 +189,23 @@ class TestRiskBands:
         assert _risk_level(score) == expected
 
 
+class TestCors:
+    preview_origin = (
+        "https://id-preview--0ca650d0-eedc-4a07-8ca5-d96395203209.lovable.app"
+    )
+
+    def test_origin_configuration_is_normalized_and_explicit(self):
+        origins = _parse_frontend_origins(
+            " https://sentra.example/ , http://localhost:3000///, , "
+        )
+        assert origins == [
+            self.preview_origin,
+            "https://sentra.example",
+            "http://localhost:3000",
+        ]
+        assert "*" not in _parse_frontend_origins("*")
+
+
 class TestInferenceConsistency:
     def test_api_uses_training_feature_schema(self, sample_data):
         train = sample_data.drop(columns=["Class"])
@@ -211,6 +235,7 @@ class TestInferenceConsistency:
         finally:
             _state.clear()
             _state.update(previous)
+
 
     def test_batch_and_invalid_requests(self, sample_data):
         train = sample_data.drop(columns=["Class"])
@@ -246,6 +271,45 @@ class TestInferenceConsistency:
             assert client.post(
                 "/predict/batch", json={"transactions": []}
             ).status_code == 422
+
+            preflight = client.options(
+                "/predict",
+                headers={
+                    "Origin": TestCors.preview_origin,
+                    "Access-Control-Request-Method": "POST",
+                    "Access-Control-Request-Headers": "content-type",
+                },
+            )
+            assert preflight.status_code in (200, 204)
+            assert preflight.headers["access-control-allow-origin"] == (
+                TestCors.preview_origin
+            )
+            assert "POST" in preflight.headers["access-control-allow-methods"]
+            assert "content-type" in preflight.headers[
+                "access-control-allow-headers"
+            ].lower()
+
+            response = client.post(
+                "/predict",
+                json=payload,
+                headers={"Origin": TestCors.preview_origin},
+            )
+            assert response.status_code == 200
+            assert set(response.json()) == {
+                "fraud_score",
+                "is_fraud",
+                "risk_level",
+                "threshold",
+            }
+            assert response.headers["access-control-allow-origin"] == (
+                TestCors.preview_origin
+            )
+            unapproved = client.post(
+                "/predict",
+                json=payload,
+                headers={"Origin": "https://unapproved.example"},
+            )
+            assert "access-control-allow-origin" not in unapproved.headers
         finally:
             _state.clear()
             _state.update(previous)
