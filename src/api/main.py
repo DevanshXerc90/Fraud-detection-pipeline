@@ -6,6 +6,7 @@ transactions.
 """
 import json
 import math
+import os
 import pickle
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -14,6 +15,7 @@ from typing import List
 import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
@@ -141,11 +143,42 @@ async def lifespan(app: FastAPI):
 
 # ── App ────────────────────────────────────────────────────────
 
+DEFAULT_FRONTEND_ORIGINS = (
+    "https://id-preview--0ca650d0-eedc-4a07-8ca5-d96395203209.lovable.app",
+)
+
+
+def _parse_frontend_origins(configured_origins: str | None = None) -> list[str]:
+    """Return unique, normalized, explicitly allowed frontend origins."""
+    raw_origins = (
+        os.getenv("FRONTEND_ORIGINS")
+        if configured_origins is None
+        else configured_origins
+    )
+    origins = list(DEFAULT_FRONTEND_ORIGINS)
+    if raw_origins:
+        origins.extend(raw_origins.split(","))
+
+    normalized: list[str] = []
+    for origin in origins:
+        value = origin.strip().rstrip("/")
+        if value and value != "*" and value not in normalized:
+            normalized.append(value)
+    return normalized
+
+
 app = FastAPI(
     title="Fraud Detection API",
     description="Real-time credit card fraud detection powered by XGBoost",
     version="1.0.0",
     lifespan=lifespan,
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_parse_frontend_origins(),
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Accept"],
+    allow_credentials=False,
 )
 
 

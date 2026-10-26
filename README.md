@@ -194,6 +194,21 @@ not a calibrated probability. Risk labels are LOW `<0.4`, MEDIUM `0.4–<0.7`,
 HIGH `0.7–<0.9`, and CRITICAL `>=0.9`; they are display bands separate from
 the binary decision threshold.
 
+### Browser frontend CORS
+
+The API allows the Lovable preview origin by default. For Render, configure the
+`FRONTEND_ORIGINS` environment variable with the exact preview origin and the
+exact published frontend origin, separated by commas:
+
+```text
+https://id-preview--0ca650d0-eedc-4a07-8ca5-d96395203209.lovable.app,<EXACT_PUBLISHED_FRONTEND_ORIGIN>
+```
+
+Replace `<EXACT_PUBLISHED_FRONTEND_ORIGIN>` with the real published Lovable
+origin before saving the Render setting; do not use a placeholder in production.
+For local development, append the exact local origin (for example,
+`http://localhost:3000`) to the same comma-separated variable.
+
 Training writes `model.pkl`, `model.xgb.json`, `preprocessor.pkl`,
 `feature_engineer.pkl`, `metadata.json`, and `results.json`. The native JSON
 XGBoost artifact produced exactly the same predictions as the joblib model in
@@ -227,5 +242,4 @@ train.py       end-to-end training command
 models/        generated compatible artifacts and metrics
 outputs/       generated plots and prediction examples
 ```
-
 
